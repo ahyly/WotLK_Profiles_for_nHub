@@ -1,0 +1,36 @@
+
+Holy Paladin:
+
+* Skills that should be removed from auto cast because they're situational skills: Hand of Sacrifice, Hand of Freedom and Aura Mastery.
+* Flash of heal only works with lower gear, once you get 700 haste or full bis items Holy Light is our main healing hability
+Rotation Suggestion: Key Modifier to change between flash heal and Holy Light builds or a command like /renew on or off in Holy Priest.
+
+------------------------------------------------------------------------------------------------------------------------------------------
+Holy Priest:
+
+* Skills that should be removed from auto cast because they're situational skills: Guardian Spirit, Fear Ward, Divine Hymm and Hymm of Hope
+Rotation Suggestion: Healing script working fine and it helps our mana recovery (Just dropped solace and got abacus because of this profile)
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Discipline Priest:
+* Skills that should be removed from auto cast because they're situational skills: Pain Supression,Fear Ward,Divine Hymm and Hymm of Hope.
+Rotation Suggestion: Shield as many players as we can and not only those taking damage, also it would be nice a command to start shielding all the players before the encounter. (Your old PQR profile already done that)
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Restoration Shaman:
+
+* Skills that should be removed from auto cast because they're situational skills: None.
+Rotation Suggestion: Include Nature Swiftness and Tidal force in the rotation when some players gets their hp dropped to 50% or less.
+PS: This is the best healing profile so far, just started playing Restoration Shaman because of this profile. TYVM!
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+Restoration Druid:
+* Skills that should be removed from auto cast because they're situational skills: Innervate and Tranquility.
+Rotation Suggestion: Main Tank skills healing skills should be only Life Bloom and Rejuvenation, Regrowth takes a lot of time to cast (1.4 to be exactly).
+                     Key Modifier to switch beetween 10man raid when we cast nourish and 25man when we only cast rejuvetation in all players.
+
+
+* Priest: Add Shackle Undead
+* Warrior: More advanced rotation
+* Warlock: Fix demon rotation. Add more stuff to GUI.
