@@ -160,22 +160,10 @@ local abilities = {
 				end
 			end
 		else
-			for k, v in pairs(ni.objects) do
-				if type(v) ~= "function" 
-				and v.name ~= nil 
-				and string.match(v.name, "School") then
-					local dist = ni.player.distance(k);
-					if dist ~= nil and dist < 20 then
-						ni.player.lookat(k);
-						break;
-					end
-				end
-			end
 			ni.spell.delaycast(Fishing, nil, 1.5);
 			ni.utils.resetlasthardwareaction();
 		end
 	end,
-}
 -----------------------------------
 	["Fishing"] = function()
 		if ni.player.islooting() then
@@ -206,17 +194,6 @@ local abilities = {
 				end
 			end
 		else
-			for k, v in pairs(ni.objects) do
-				if type(v) ~= "function" 
-				and v.name ~= nil 
-				and string.match(v.name, "School") then
-					local dist = ni.player.distance(k);
-					if dist ~= nil and dist < 20 then
-						ni.player.lookat(k);
-						break;
-					end
-				end
-			end
 			ni.spell.delaycast(Fishing, nil, 1.5);
 			ni.utils.resetlasthardwareaction();
 		end
