@@ -1,6 +1,37 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local items = {
+	settingsfile = "DarhangeR_Assasin.xml",
+	{ type = "title", text = "Assassination Rogue by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+
 local queue = {
 	"Window",
 	"Universal pause",
@@ -8,7 +39,7 @@ local queue = {
 	"Poison Weapon",
 	"Combat specific Pause",
 	"Healthstone (Use)",
-	"Potions (Use)",
+	"Heal Potions (Use)",
 	"Racial Stuff",
 	"Use enginer gloves",
 	"Trinkets",
@@ -35,9 +66,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -48,7 +80,7 @@ local abilities = {
 		 and GetTime() - applypoison > 4 then 
 			applypoison = nil 
 		end
-		if UnitAffectingCombat("player") == nil 
+		if not UnitAffectingCombat("player") 
 		and applypoison == nil then
 		applypoison = GetTime()
 		if mh == nil 
@@ -67,8 +99,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.meleeStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.meleeStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -78,9 +110,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -89,10 +123,12 @@ local abilities = {
 		end	
 	end,
 -----------------------------------
-	["Potions (Use)"] = function()
+	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -105,7 +141,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -116,7 +152,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -137,7 +173,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10) 
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(10)
@@ -149,14 +185,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(14)
 			return true
@@ -165,7 +201,9 @@ local abilities = {
 	end,
 -----------------------------------	
 	["Kick (Interrupt)"] = function()
-		if ni.spell.shouldinterrupt("target")
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled	
+		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.available(1766)
 		 and ni.spell.isinstant(1766)
 		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
@@ -177,19 +215,20 @@ local abilities = {
 	end,
 -----------------------------------	
 	["Tricks of the Trade"] = function()
-		if ( ni.unit.threat("player", "target") >= 2
+		if ( ni.unit.threat("player") >= 2
 		 or ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and UnitExists("focus")
+		 and ni.unit.exists("focus")
 		 and ni.spell.available(57934)
 		 and ni.spell.valid("focus", 57934, false, true, true) then
 			ni.spell.cast(57934, "focus")
 			return true
 		else 
 		local tank = ni.tanks()
-		if ( ni.unit.threat("player", "target") >= 2
+		if ( ni.unit.threat("player") >= 2
 		 or ni.vars.combat.cd or ni.unit.isboss("target") )
-		  and not UnitExists("focus")
+		  and not ni.unit.exists("focus")
 		  and ni.spell.available(57934)
+		  and ni.data.darhanger.youInInstance() 
 		  and ni.spell.valid(tank, 57934, false, true, true) then
 			ni.spell.cast(57934, tank)
 			return true
@@ -350,5 +389,5 @@ local abilities = {
 		end 
 	end,
 }
-	
-ni.bootstrap.rotation("Assassination_DarhangeR", queue, abilities, data)
+
+ni.bootstrap.rotation("Assassination_DarhangeR", queue, abilities, data, { [1] = "Assassination Rogue by DarhangeR", [2] = items });	

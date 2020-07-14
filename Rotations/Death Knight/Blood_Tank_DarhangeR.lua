@@ -1,24 +1,78 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local enemies = { };
+local function ActiveEnemies()
+	table.wipe(enemies);
+	enemies = ni.unit.enemiesinrange("target", 7);
+	for k, v in ipairs(enemies) do
+		if ni.player.threat(v.guid) == -1 then
+			table.remove(enemies, k);
+		end
+	end
+	return #enemies;
+end
+local items = {
+	settingsfile = "DarhangeR_TANK_Blood.xml",
+	{ type = "title", text = "Blood DK TANK by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Death Strike (Lich)", enabled = true, value = 75, key = "deathstrike" },
+	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Rune Tap", enabled = true, value = 55, key = "runetap" },
+	{ type = "entry", text = "Vampiric Blood", enabled = true, value = 75, key = "vampblood" },
+	{ type = "entry", text = "Mark of Blood", enabled = true, value = 35, key = "markofblood" },
+	{ type = "entry", text = "Icebound Fortitude", enabled = true, value = 20, key = "iceboundfort" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Presence's" },
+	{ type = "dropdown", menu = {
+		{ selected = false, value = 48266, text = "Blood Presence" },
+		{ selected = true, value = 48263, text = "Frost Presence" },
+		{ selected = false, value = 48265, text = "Unholy Presence" },
+	}, key = "Presence" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+
 local queue = {
 	"Window",
 	"Universal pause",
 	"AutoTarget",
-	"Frost presence check",
+	"Use Presence",
 	"Horn of Winter",
 	"Combat specific Pause",
 	"Pet Attack/Follow",
 	"Healthstone (Use)",
-	"Potions (Use)",
+	"Heal Potions (Use)",
 	"Racial Stuff",
 	"Mind Freeze (Interrupt)",
-	"Hyst",
+	"Hysteria",
 	"Empower Rune Weapon",
-	"Icebound Fort",
+	"Icebound Fortitude",
 	"Mark of Blood",
 	"Rune Tap",
-	"Vamp Blood",
+	"Vampiric Blood",
 	"Dark Command",
 	"Dark Command (Ally)",
 	"Death Grip (Ally)",
@@ -47,18 +101,20 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
 -----------------------------------
-	["Frost presence check"] = function()
-		if not ni.player.buff(48263)
-	     and ni.spell.isinstant(48263)
-		 and ni.spell.available(48263) then
-			ni.spell.cast(48263)
+	["Use Presence"] = function()
+		local presence = GetSetting("Presence");		
+		if not ni.player.buff(presence)
+		 and ni.spell.isinstant(presence)
+		 and ni.spell.available(presence) then
+			ni.spell.cast(presence)
 			return true
 		end
 	end,
@@ -73,8 +129,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.tankStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.tankStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -85,16 +141,16 @@ local abilities = {
 -----------------------------------
 	["Pet Attack/Follow"] = function()
 		if ni.unit.hp("playerpet") < 20
-		 and UnitExists("playerpet")
-		 and UnitExists("target")
+		 and ni.unit.exists("playerpet")
+		 and ni.unit.exists("target")
 		 and UnitIsUnit("target", "pettarget")
 		 and not UnitIsDeadOrGhost("playerpet") then
 			ni.data.darhanger.petFollow()
 		 else
 		if UnitAffectingCombat("player")
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and ni.unit.hp("playerpet") > 60
-		 and UnitExists("target")
+		 and ni.unit.exists("target")
 		 and not UnitIsUnit("target", "pettarget")
 		 and not UnitIsDeadOrGhost("playerpet") then 
 			ni.data.darhanger.petAttack()
@@ -103,9 +159,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -114,10 +172,12 @@ local abilities = {
 		end	
 	end,
 -----------------------------------
-	["Potions (Use)"] = function()
+	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -130,7 +190,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -141,7 +201,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(49930), "target") == 1 then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -160,7 +220,9 @@ local abilities = {
 		end,
 -----------------------------------
 	["Mind Freeze (Interrupt)"] = function()
-		if ni.spell.shouldinterrupt("target")
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled	
+		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.isinstant(47528)
 		 and ni.spell.available(47528)
 		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
@@ -171,10 +233,23 @@ local abilities = {
 		end
 	end,
 -----------------------------------
-	["Vamp Blood"] = function()
+	["Icebound Fortitude"] = function()
+		local value, enabled = GetSetting("iceboundfort");
+		if enabled
+		 and ni.player.hp() < value
+		 and ni.spell.isinstant(48792)
+		 and ni.spell.available(48792) then
+			ni.spell.cast(48792)
+			return true
+		end
+	end,
+-----------------------------------
+	["Vampiric Blood"] = function()
+		local value, enabled = GetSetting("vampblood");
 		local _, BR = ni.rune.bloodrunecd()
-		if BR >= 1
-		 and ni.player.hp() < 75
+		if enabled
+		 and ni.player.hp() < value
+		 and BR >= 1
 		 and ni.spell.isinstant(55233)
 		 and ni.spell.available(55233) then
 			ni.spell.cast(55233)
@@ -183,9 +258,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mark of Blood"] = function()
+		local value, enabled = GetSetting("markofblood");
 		local _, BR = ni.rune.bloodrunecd()
-		if BR >= 1
-		 and ni.player.hp() < 35
+		if enabled
+		 and BR >= 1
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(49005)
 		 and ni.spell.available(49005) then
 			ni.spell.cast(49005, "target")
@@ -194,29 +271,22 @@ local abilities = {
 	end,
 -----------------------------------
 	["Rune Tap"] = function()
-		if ni.player.hp() < 55
+		local value, enabled = GetSetting("runetap");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(48982) then
 		  local _, BR = ni.rune.bloodrunecd()
 		  local _, DR = ni.rune.deathrunecd()
 		   if ( BR == 0 or DR == 0 )
 		   and ni.spell.isinstant(45529)
 		   and ni.spell.cd(45529) == 0 then 
-			ni.spell.cast(45529)
-                        ni.spell.cast(48982)
-                        return true
+				ni.spell.cast(45529)
+                ni.spell.cast(48982)
+            return true
                 else
 		        ni.spell.cast(48982)
 			return true
 			end
-		end
-	end,
------------------------------------
-	["Icebound Fort"] = function()
-		if ni.player.hp() < 20
-		 and ni.spell.isinstant(48792)
-		 and ni.spell.available(48792) then
-			ni.spell.cast(48792)
-			return true
 		end
 	end,
 -----------------------------------
@@ -239,34 +309,35 @@ local abilities = {
 		end
 	end,
 -----------------------------------
-	["Hyst"] = function()
+	["Hysteria"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.isinstant(49016)
 		 and ni.spell.available(49016)
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(49930), "target") == 1 then
-		  if not UnitExists("focus")
+		  if not ni.unit.exists("focus")
 		  and not ni.player.buff(49016) then
 			ni.spell.cast(49016, "player")
 			return true
 		else
-		 if UnitExists("focus")
-		 and UnitInRange("focus")
-		 and not UnitIsDeadOrGhost("focus")
-		 and ni.spell.isinstant(49016)
-		 and ni.spell.available(49016)
-		 and ni.data.darhanger.CDsaverTTD()
-		 and not ni.unit.buff("focus", 49016) then
-			ni.spell.cast(49016, "focus")
-			return true
-			     end
+		if ni.spell.isinstant(49016)
+		 and ni.spell.available(49016) then
+		  if ni.unit.exists("focus")
+		  and not UnitIsDeadOrGhost("focus")
+		  and ni.data.darhanger.CDsaverTTD("target")
+		  and not ni.unit.buff("focus", 49016)
+		  and ni.spell.valid("focus", 49016, false, true, true) then
+					ni.spell.cast(49016, "focus")
+					return true
+					end
+			    end
 			end
 		end
 	end,
 -----------------------------------
 	["Icy Touch"] = function()
 		local icy = ni.data.darhanger.dk.icy()
-		if ( icy == nil or ( icy - GetTime() <= 2 ) )
+		if ( icy == nil or ( icy - GetTime() < 2 ) )
 		 and ni.spell.available(49909)
 		 and ni.spell.isinstant(49909)
 		 and ni.spell.valid("target", 49909, true, true) then
@@ -278,7 +349,7 @@ local abilities = {
 -----------------------------------
 	["Plague Strike"] = function()
 		local plague = ni.data.darhanger.dk.plague()
-		if ( plague == nil or ( plague - GetTime() <= 2 ) )
+		if ( plague == nil or ( plague - GetTime() < 2 ) )
 		 and ni.spell.available(49921)
 		 and ni.spell.isinstant(49921)
 		 and ni.spell.valid("target", 49921, true, true) then
@@ -305,11 +376,11 @@ local abilities = {
 		local enemies = ni.unit.enemiesinrange("target", 7)
 		local _, BR = ni.rune.bloodrunecd()
 		local _, DR = ni.rune.deathrunecd()
-		if #enemies >= 1 then
+		if ActiveEnemies() >= 1 then
 		 if ( BR >= 1 or DR >= 1 )
 		 and icy
 		 and plague
-		 and  UnitExists("target")
+		 and ni.unit.exists("target")
 		 and UnitCanAttack("player", "target")
 		 and ni.spell.isinstant(50842)
 		 and ni.spell.valid("target", 50842, true, true) then
@@ -348,7 +419,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Dark Command"] = function()
-		if UnitExists("targettarget") 
+        table.wipe(enemies);
+		if ni.unit.exists("targettarget") 
 		 and not UnitIsDeadOrGhost("targettarget")
 		 and UnitAffectingCombat("player")
 		 and (ni.unit.debuff("targettarget", 72410) 
@@ -365,6 +437,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Dark Command (Ally)"] = function()
+        table.wipe(enemies);
 		local enemies = ni.unit.enemiesinrange("player", 30)
 		for i = 1, #enemies do
 		local threatUnit = enemies[i].guid
@@ -384,6 +457,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Death Grip (Ally)"] = function()
+        table.wipe(enemies);
 		local enemies = ni.unit.enemiesinrange("player", 30)
 		for i = 1, #enemies do
 		local threatUnit = enemies[i].guid
@@ -401,12 +475,14 @@ local abilities = {
 	end,
 -----------------------------------
 	["Death Strike (Lich)"] = function()
+		local value, enabled = GetSetting("deathstrike"); 
 		local _, FR = ni.rune.frostrunecd()
 		local _, UR = ni.rune.unholyrunecd()
 		local _, DR = ni.rune.deathrunecd()
 		local icy = ni.data.darhanger.dk.icy()
 		local plague = ni.data.darhanger.dk.plague()
-		if ni.player.hp() < 75 
+		if enabled
+		 and ni.player.hp() < value 
 		 and ((FR >= 1 and UR >= 1)
 		 or (FR >= 1 and DR >= 1)
 		 or (DR >= 1 and UR >= 1)
@@ -455,9 +531,8 @@ local abilities = {
 		local _, BR = ni.rune.bloodrunecd()
 		local icy = ni.data.darhanger.dk.icy()
 		local plague = ni.data.darhanger.dk.plague()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if BR >= 1
-		 and #enemies > 1
+		 and ActiveEnemies() > 1
 		 and plague
 		 and icy
 		 and ni.spell.isinstant(55262)
@@ -472,10 +547,9 @@ local abilities = {
 		local _, BR = ni.rune.bloodrunecd()
 		local icy = ni.data.darhanger.dk.icy()
 		local plague = ni.data.darhanger.dk.plague()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if not IsSpellKnown(55262)
 		 and BR >= 1
-		 and ( #enemies == 1 or #enemies < 2 )
+		 and ( ActiveEnemies() == 1 or ActiveEnemies() < 2 )
 		 and plague
 		 and icy
 		 and ni.spell.isinstant(49930)
@@ -490,9 +564,8 @@ local abilities = {
 		local _, BR = ni.rune.bloodrunecd()
 		local icy = ni.data.darhanger.dk.icy()
 		local plague = ni.data.darhanger.dk.plague()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if BR >= 1
-		 and ( #enemies == 1 or #enemies < 2 )
+		 and ( ActiveEnemies() == 1 or ActiveEnemies() < 2 )
 		 and plague
 		 and icy
 		 and ni.spell.isinstant(55262)
@@ -533,4 +606,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Blood_Tank_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Blood_Tank_DarhangeR", queue, abilities, data, { [1] = "Blood DK TANK by DarhangeR", [2] = items });

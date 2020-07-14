@@ -1,14 +1,48 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local items = {
+	settingsfile = "DarhangeR_Balance.xml",
+	{ type = "title", text = "Balance Druid by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Auto Form", enabled = true, key = "autoform" },	
+	{ type = "entry", text = "Innervate (Self)", enabled = true, value = 34, key = "innervate" },
+	{ type = "entry", text = "Innervate (Auto-Cast on Healers)", enabled = false, value = 35, key = "innervateheal" },
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Barkskin", enabled = true, value = 40, key = "barkskin" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end	
+
 local queue = {
 	"Window",
 	"Universal pause",
 	"AutoTarget",
 	"Gift of the Wild",
 	"Thorns",
-	"Moonkin Form",
-	"Innervate",		
+	"Moonkin Form",		
 	"Combat specific Pause",
 	"Healthstone (Use)",
 	"Heal Potions (Use)",
@@ -16,6 +50,7 @@ local queue = {
 	"Racial Stuff",
 	"Use enginer gloves",
 	"Trinkets",
+	"Innervate",
 	"Barkskin",
 	"Faerie Fire",
 	"Hurricane",
@@ -37,9 +72,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -50,7 +86,8 @@ local abilities = {
 		 return false
 	end
 		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470) then
+		 and ni.spell.isinstant(48470) 
+		 and not ni.data.darhanger.DruidStuff("player") then
 			ni.spell.cast(48470)	
 			return true
 		end
@@ -59,35 +96,55 @@ local abilities = {
 	["Thorns"] = function()
 		if not ni.player.buff(53307)
 		 and ni.spell.available(53307)
-		 and ni.spell.isinstant(53307)
-		 and UnitAffectingCombat("player") == nil then
+		 and ni.spell.isinstant(53307) then
 			ni.spell.cast(53307)
 			return true
 		end
 	end,
 -----------------------------------
 	["Moonkin Form"] = function()
-		if not ni.player.buff(24858)
+		local _, enabled = GetSetting("autoform");
+		if enabled
+		 and not ni.player.buff(24858)
 		 and ni.spell.available(24858)
-		 and not ni.player.buff(33357) then
+		 and not ni.data.darhanger.DruidStuff("player") then
 			ni.spell.cast(24858)
 			return true
 		end
 	end,
 -----------------------------------
 	["Innervate"] = function()
-		if ni.player.power() < 30
+		local value, enabled = GetSetting("innervate");
+		local valueH, enabledH = GetSetting("innervateheal");
+		if enabled
+		 and ni.player.power() < value
 		 and not ni.player.buff(29166)
 		 and ni.spell.isinstant(29166)
-		 and ni.spell.available(29166) then
+		 and ni.spell.available(29166) 
+		 and not ni.data.darhanger.DruidStuff("player")	then
 			ni.spell.cast(29166)
 			return true
+		end
+		if enabledH
+		 and ni.spell.isinstant(29166)
+		 and ni.spell.available(29166) then
+		  for i = 1, #ni.members do
+		  local ally = ni.members[i].unit
+		   if ni.data.darhanger.ishealer(ally)
+		    and ni.unit.power(ally) < valueH
+		    and not ni.unit.buff(ally, 29166)
+			and not ni.unit.buff(ally, 54428)
+			and ni.spell.valid(ally, 29166, false, true, true) then
+				ni.spell.cast(29166, ally)
+				return true
+				end
+			end
 		end
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.casterStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.casterStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -97,9 +154,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -109,9 +168,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -121,11 +182,13 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mana Potions (Use)"] = function()
+		local value, enabled = GetSetting("manapotionuse");
 		local mpot = { 33448, 43570, 40087, 42545, 39671 }
 		for i = 1, #mpot do
-			if ni.player.power() < 35
+			if enabled
+			 and ni.player.power() < value
 			 and ni.player.hasitem(mpot[i])
-			 and ni.player.itemcd(mpot[i]) == 0  then
+			 and ni.player.itemcd(mpot[i]) == 0 then
 				ni.player.useitem(mpot[i])
 				return true
 			end
@@ -136,7 +199,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -147,7 +210,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -168,7 +231,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(10)
@@ -180,14 +243,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -196,7 +259,9 @@ local abilities = {
 	end,
 -----------------------------------	
 	["Barkskin"] = function()
-		if ni.player.hp() < 35
+		local value, enabled = GetSetting("barkskin");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(22812)
 		 and ni.spell.available(22812) then
 			ni.spell.cast(22812)
@@ -239,7 +304,7 @@ local abilities = {
 	["Force of Nature"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		and ni.spell.isinstant(33831)
-		and ni.data.darhanger.CDsaverTTD()
+		and ni.data.darhanger.CDsaverTTD("target")
 		and ni.spell.available(33831) then
 			ni.spell.castat(33831, "target")
 			return true
@@ -321,4 +386,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Balance_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Balance_DarhangeR", queue, abilities, data, { [1] = "Balance Druid by DarhangeR", [2] = items });

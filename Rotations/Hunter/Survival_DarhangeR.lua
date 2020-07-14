@@ -1,6 +1,53 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local enemies = { };
+local function ActiveEnemies()
+	table.wipe(enemies);
+	enemies = ni.unit.enemiesinrange("target", 7);
+	for k, v in ipairs(enemies) do
+		if ni.player.threat(v.guid) == -1 then
+			table.remove(enemies, k);
+		end
+	end
+	return #enemies;
+end
+local items = {
+	settingsfile = "DarhangeR_Survival.xml",
+	{ type = "title", text = "Survival Hunter by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },	
+	{ type = "entry", text = "Aspect of the Dragonhawk (Mana cup)", value = 85, key = "dragon" },
+	{ type = "entry", text = "Aspect of the Viper (Mana threshold)", value = 15, key = "viper" },
+	{ type = "entry", text = "Mend Pet", enabled = true, value = 80, key = "mendpet" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Feign Death", enabled = true, key = "feign" },	
+	{ type = "entry", text = "Deterrence", enabled = true, value = 25, key = "deterrence" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+
 local queue = {
 	"Window",
 	"Cancel Deterrence",
@@ -51,28 +98,31 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
 -----------------------------------
 	["Aspect of the Dragonhawk"] = function()
+		local value = GetSetting("dragon");
 		if not ni.player.buff(61847)
 		 and ni.spell.available(61847)
 		 and ni.spell.isinstant(61847)
-		 and ni.player.power() > 85 then
+		 and ni.player.power() > value then
 			ni.spell.cast(61847)
 			return true
 		end
 	end,
 -----------------------------------
 	["Aspect of the Viper"] = function()
+		local value = GetSetting("viper");
 		if not ni.player.buff(34074)
 		 and ni.spell.available(34074)
 		 and ni.spell.isinstant(61847)
-		 and ni.player.power() < 15 then
+		 and ni.player.power() < value then
 			ni.spell.cast(34074)
 			return true
 		end
@@ -80,17 +130,17 @@ local abilities = {
 -----------------------------------
 	["Pet Attack/Follow"] = function()
 		if ni.unit.hp("playerpet") < 20
-		 and UnitExists("playerpet")
-		 and UnitExists("target")
+		 and ni.unit.exists("playerpet")
+		 and ni.unit.exists("target")
 		 and UnitIsUnit("target", "pettarget")
 		 and ni.unit.buff("pet", 48990)
 		 and not UnitIsDeadOrGhost("playerpet") then
 			ni.data.darhanger.petFollow()
 		 else
 		if UnitAffectingCombat("player")
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and ni.unit.hp("playerpet") > 60
-		 and UnitExists("target")
+		 and ni.unit.exists("target")
 		 and not UnitIsUnit("target", "pettarget")
 		 and not UnitIsDeadOrGhost("playerpet") then 
 			ni.data.darhanger.petAttack()
@@ -99,9 +149,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mend Pet"] = function()
-		if ni.unit.hp("playerpet") < 80
+		local value, enabled = GetSetting("mendpet");
+		if enabled
+		 and ni.unit.hp("playerpet") < value
 		 and not ni.unit.buff("pet", 48990)
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and UnitInRange("playerpet")
 		 and ni.spell.isinstant(48990)
 		 and ni.spell.available(48990)
@@ -134,8 +186,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.meleeStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.meleeStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -145,9 +197,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -157,9 +211,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -169,11 +225,13 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mana Potions (Use)"] = function()
+		local value, enabled = GetSetting("manapotionuse");
 		local mpot = { 33448, 43570, 40087, 42545, 39671 }
 		for i = 1, #mpot do
-			if ni.player.power() < 25
+			if enabled
+			 and ni.player.power() < value
 			 and ni.player.hasitem(mpot[i])
-			 and ni.player.itemcd(mpot[i]) == 0  then
+			 and ni.player.itemcd(mpot[i]) == 0 then
 				ni.player.useitem(mpot[i])
 				return true
 			end
@@ -184,7 +242,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -195,7 +253,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49052) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -216,7 +274,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.valid("target", 49052) then
 			ni.player.useinventoryitem(10)
@@ -228,14 +286,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49052) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49052) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -244,8 +302,10 @@ local abilities = {
 	end,
 -----------------------------------
 	["Deterrence"] = function()
-		if ni.player.hp() < 25
-		 and ni.spell.isinstant(19263)	
+		local value, enabled = GetSetting("deterrence");
+		if enabled
+		 and ni.player.hp() < value
+		 and ni.spell.isinstant(19263)
 		 and ni.spell.available(19263) then
 			ni.spell.cast(19263)
 			return true
@@ -297,7 +357,7 @@ local abilities = {
 		 and ni.player.buff(61847)
 		 and ni.spell.available(3045)
 		 and ni.spell.isinstant(3045)
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49045) then
 			ni.spell.cast(3045)
 			return true
@@ -307,7 +367,7 @@ local abilities = {
 	["Pet:Call of the Wild"] = function()
 		if ( ni.vars.CD or ni.unit.isboss("target") )
 		 and IsSpellKnown(53434, true)
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and GetSpellCooldown(53434) == 0 then
 			ni.spell.cast(53434)
 			return true
@@ -325,7 +385,7 @@ local abilities = {
 -----------------------------------
 	["Kill Command"] = function()
 		if ( ni.vars.CD or ni.unit.isboss("target") )
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and ni.spell.isinstant(34026)
 		 and ni.spell.available(34026)
 		 and ni.spell.valid("target", 49045) then
@@ -335,33 +395,43 @@ local abilities = {
 	end,
 -----------------------------------
 	["Misdirection"] = function()
-		if ( ni.unit.threat("player", "target") >= 2
+		local tank = ni.tanks()
+		if ( ni.unit.threat("player") >= 2
 		 or ni.vars.CD or ni.unit.isboss("target") )
-		 and UnitExists("focus")
-		 and UnitInRange("focus")
-		 and ni.spell.available(34477)
-		 and not UnitIsDeadOrGhost("focus") then
+		 and ni.spell.available(34477) then
+		if ni.unit.exists("focus")		 
+		 and not UnitIsDeadOrGhost("focus")
+		 and ni.spell.valid("focus", 34477, false, true, true) then
 			ni.spell.cast(34477, "focus")
 			ni.data.darhanger.hunter.LastMD = GetTime()
 			return true
 		else 
-		if ( ni.unit.threat("player", "target") >= 2
-		 or ni.vars.CD or ni.unit.isboss("target") )
-		  and not UnitExists("focus")
-		  and UnitExists("playerpet")
-		  and UnitInRange("playerpet")
-		  and ni.spell.available(34477)
-		  and not UnitIsDeadOrGhost("playerpet") then
+		if not ni.unit.exists("focus")
+		 and not ni.unit.exists(tank)
+		 and ni.unit.exists("playerpet")
+		 and not UnitIsDeadOrGhost("playerpet")
+		 and ni.spell.valid("playerpet", 34477, false, true, true) then
 			ni.spell.cast(34477, "playerpet")
 			ni.data.darhanger.hunter.LastMD = GetTime()
 			return true
+		else
+		if ni.unit.exists(tank)
+		 and ni.data.darhanger.youInInstance() 
+		 and ni.spell.valid(tank, 34477, false, true, true) then
+			ni.spell.cast(34477, tank)
+			ni.data.darhanger.hunter.LastMD = GetTime()
+			return true
+					end
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Feign Death"] = function()
-		if ni.unit.threat("player", "target") >= 2
-		 and UnitExists("focus")
+		local _, enabled = GetSetting("feign");
+		if enabled
+		 and ni.unit.threat("player", "target") >= 2
+		 and ni.unit.exists("focus")
 		 and ni.spell.isinstant(5384)
 		 and ni.spell.available(5384)
 		 and not ni.spell.available(34477)
@@ -402,8 +472,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Multi-Shot (AoE)"] = function()
-		local enemies = ni.unit.enemiesinrange("target", 7)
-		if #enemies >= 2
+		if ActiveEnemies() >= 2
 		 and ni.spell.available(49048)
 		 and ni.spell.valid("target", 49048, true, true) then
 			ni.spell.cast(49048, "target")
@@ -489,4 +558,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Survival_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Survival_DarhangeR", queue, abilities, data, { [1] = "Survival Hunter by DarhangeR", [2] = items });

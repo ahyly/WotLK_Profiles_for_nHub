@@ -1,6 +1,50 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local enemies = { };
+local function ActiveEnemies()
+	table.wipe(enemies);
+	enemies = ni.unit.enemiesinrange("target", 7);
+	for k, v in ipairs(enemies) do
+		if ni.player.threat(v.guid) == -1 then
+			table.remove(enemies, k);
+		end
+	end
+	return #enemies;
+end
+local items = {
+	settingsfile = "DarhangeR_FeralBear.xml",
+	{ type = "title", text = "Feral Bear Druid by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Auto Form", enabled = true, key = "autoform" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Barkskin", enabled = true, value = 35, key = "barkskin" },
+	{ type = "entry", text = "Survival Instincts", enabled = true, value = 30, key = "survivial" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end	
+
 local queue = {
 	"Window",
 	"Universal pause",
@@ -10,7 +54,7 @@ local queue = {
 	"Bear Form",
 	"Combat specific Pause",
 	"Healthstone (Use)",
-	"Potions (Use)",
+	"Heal Potions (Use)",
 	"Racial Stuff",
 	"Barkskin",
 	"Frenzied Regeneration",
@@ -22,8 +66,8 @@ local queue = {
 	"Demoralizing Roar",
 	"Mangle (Bear)",
 	"Swipe (Bear)",
-	"Maul",
 	"Lacerate",
+	"Maul",
 }
 local abilities = {
 -----------------------------------
@@ -35,9 +79,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -48,7 +93,8 @@ local abilities = {
 		 return false
 	end
 		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470) then
+		 and ni.spell.isinstant(48470) 
+		 and not ni.data.darhanger.DruidStuff("player") then
 			ni.spell.cast(48470)	
 			return true
 		end
@@ -58,23 +104,28 @@ local abilities = {
 		if not ni.player.buff(53307)
 		 and ni.spell.available(53307)
 		 and ni.spell.isinstant(53307)
-		 and UnitAffectingCombat("player") == nil then
+		 and not UnitAffectingCombat("player")
+		 and not ni.data.darhanger.DruidStuff("player") then
 			ni.spell.cast(53307)
 			return true
 		end
 	end,
 -----------------------------------
 	["Bear Form"] = function()
-		if not ni.player.buff(9634)
-		 and ni.spell.available(9634) then
+		local _, enabled = GetSetting("autoform");
+		if enabled
+		 and not ni.player.buff(9634)
+		 and ni.spell.isinstant(9634)
+		 and ni.spell.available(9634)
+		 and not ni.data.darhanger.DruidStuff("player") then
 			ni.spell.cast(9634)
 			return true
 		end
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.tankStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.tankStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -84,9 +135,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -95,10 +148,12 @@ local abilities = {
 		end	
 	end,
 -----------------------------------
-	["Potions (Use)"] = function()
+	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -111,7 +166,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -122,7 +177,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(49800), "target") == 1 then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -141,7 +196,9 @@ local abilities = {
 		end,
 -----------------------------------
 	["Barkskin"] = function()
-		if ni.player.hp() < 35
+		local value, enabled = GetSetting("barkskin");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(22812)
 		 and ni.spell.available(22812) then
 			ni.spell.cast(22812)
@@ -150,7 +207,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Survival Instincts"] = function()
-		if ni.player.hp() < 30
+		local value, enabled = GetSetting("survivial");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(61336)
 		 and ni.spell.available(61336) then
 			ni.spell.cast(61336)
@@ -179,7 +238,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Growl"] = function()
-		if UnitExists("targettarget") 
+		if ni.unit.exists("targettarget") 
 		 and not UnitIsDeadOrGhost("targettarget")
 		 and UnitAffectingCombat("player")
 		 and (ni.unit.debuff("targettarget", 72410) 
@@ -195,6 +254,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Growl (Ally)"] = function()
+		table.wipe(enemies);
 		local enemies = ni.unit.enemiesinrange("target", 30)
 		for i = 1, #enemies do
 		local threatUnit = enemies[i].guid
@@ -224,9 +284,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Swipe (Bear)"] = function()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if ni.spell.available(48562)
-		 and #enemies >= 1
+		 and ActiveEnemies() >= 1
 		 and IsSpellInRange(GetSpellInfo(48564), "target") == 1 then
 			if ni.spell.available(48480, true)
 			 and not IsCurrentSpell(48480) then 
@@ -236,7 +295,6 @@ local abilities = {
 			return true;
 		end
 	end,
-
 -----------------------------------
 	["Mangle (Bear)"] = function()
 		if ni.spell.available(48564)
@@ -262,9 +320,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Demoralizing Roar"] = function()
-		local enemies;
-		if UnitExists("target")
+		if ni.unit.exists("target")
 		 and UnitCanAttack("player", "target") then
+			table.wipe(enemies);
 			enemies = ni.unit.enemiesinrange("target", 8)
 			for i = 1, # enemies do
 				local tar = enemies[i].guid;
@@ -298,4 +356,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Feral_Bear_DarhangeR", queue, abilities, data) 
+ni.bootstrap.rotation("Feral_Bear_DarhangeR", queue, abilities, data, { [1] = "Feral Bear Druid by DarhangeR", [2] = items });

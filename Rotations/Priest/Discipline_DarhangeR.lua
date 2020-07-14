@@ -1,6 +1,56 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local items = {
+	settingsfile = "DarhangeR_Disc.xml",
+	{ type = "title", text = "Discipline Priest by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Fear Ward (Self)", enabled = false, key = "fearward" },
+	{ type = "entry", text = "Fear Ward (Focus)", enabled = false, key = "fearwardmemb" },
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Desperate Prayer", enabled = true, value = 25, key = "despplayer" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Shackle Undead (Auto Use)", enabled = false, key = "shackundead" },
+	{ type = "entry", text = "Power Infusion (Focus)", enabled = true, key = "powerinfus" },
+	{ type = "entry", text = "Non Combat Healing", enabled = true, value = 95, key = "noncombatheal" },
+	{ type = "entry", text = "Power Word: Shield (Before Combat)", enabled = false, key = "pwsbeforecombat" },
+	{ type = "entry", text = "Pain Suppression", enabled = true, value = 20, key = "painsupp" },
+	{ type = "entry", text = "Inner Focus + Divine Hymn", enabled = true, key = "innerhymn" },
+	{ type = "entry", text = "Inner Focus + Divine Hymn (Members HP)", value = 35, key = "innerhymnhp" },
+	{ type = "entry", text = "Inner Focus + Divine Hymn (Members Count)", value = 9, key = "innerhymncount" },
+	{ type = "separator" },
+	{ type = "title", text = "Dispel" },
+	{ type = "separator" },
+	{ type = "entry", text = "Dispel Magic (Member)", enabled = true, key = "dispelmagmemb" },
+	{ type = "entry", text = "Abolish Disease (Member)", enabled = true, key = "abolishmb" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+
 local queue = {
 	"Window",	
 	"Universal pause",
@@ -8,7 +58,9 @@ local queue = {
 	"Prayer of Fortitude",
 	"Prayer of Spirit",
 	"Prayer of Shadow Protection",
-	"Fear Ward",			
+	"Fear Ward",
+	"Non Combat Healing",
+	"Power Word: Shield (Before Combat)",
 	"Combat specific Pause",
 	"Healthstone (Use)",
 	"Heal Potions (Use)",
@@ -17,6 +69,8 @@ local queue = {
 	"Shadowfiend",
 	"Fade",
 	"Desperate Prayer",
+	"Power Infusion",
+	"Shackle Undead (Auto Use)",
 	"Inner Focus",	
 	"Divine Hymn",
 	"Tank Heal",
@@ -28,14 +82,15 @@ local queue = {
 	"Prayer of Healing",
 	"Renew",
 	"Binding Heal",
-	"Abolish Disease",
-	"Dispel Magic",
+	"Abolish Disease (Member)",
+	"Dispel Magic (Member)",
 	"Flash Heal",
 }
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if (ni.data.darhanger.UniPause() 
+		 or ni.data.darhanger.PlayerDebuffs("player")) then
 			return true
 		end
 	end,
@@ -85,11 +140,69 @@ local abilities = {
 	end,
 -----------------------------------
 	["Fear Ward"] = function()
-		if not ni.player.buff(6346)
+		local _, enabled = GetSetting("fearward")
+		local _, enabledM = GetSetting("fearwardmemb")
+        if enabled
+		 and not ni.player.buff(6346)
 		 and ni.spell.isinstant(6346) 
 		 and ni.spell.available(6346) then
 			ni.spell.cast(6346, "player")
 			return true
+		end
+		if enabledM
+		 and ni.unit.exists("focus")
+		 and not ni.unit.buff("focus", 6346)
+		 and ni.spell.isinstant(6346) 
+		 and ni.spell.available(6346)
+		 and ni.spell.valid("focus", 6346, false, true, true) then
+			ni.spell.cast(6346, "focus")
+			return true
+		end
+	end,
+-----------------------------------
+	["Non Combat Healing"] = function()
+		local value, enabled = GetSetting("noncombatheal");
+		if enabled
+		 and not UnitAffectingCombat("player")
+		 and ni.spell.available(48068)
+		 and ni.spell.isinstant(48068)		 
+		 and ni.spell.available(48071) then
+		   if ni.members[1].hp < value
+		    and not ni.unit.buff(ni.members[1].unit, 48068, "player")
+		    and ni.spell.valid(ni.members[1].unit, 48068, false, true, true) then
+				ni.spell.cast(48068, ni.members[1].unit)
+				return true
+			end
+		   if ni.members[1].hp < value
+		    and not ni.player.ismoving()
+		    and ni.spell.valid(ni.members[1].unit, 48071, false, true, true) then
+				ni.spell.cast(48071, ni.members[1].unit)
+				return true
+			end
+		end
+	end,
+-----------------------------------
+	["Power Word: Shield (Before Combat)"] = function()
+		local _, enabled = GetSetting("pwsbeforecombat");
+		if enabled 
+		 and ni.spell.isinstant(48066)
+		 and ni.spell.available(48066) 
+		 and UnitAffectingCombat("player")== nil then
+		  for i = 1, #ni.members do
+		   if ni.members[i].range
+		    and not UnitIsDeadOrGhost(ni.members[i].unit) then
+		    local pws,_,_,_,_,_,pwsTime = ni.unit.buff(ni.members[i].unit, 48066, "player")
+		    local ws = ni.unit.debuff(ni.members[i].unit, 6788)
+		    if ni.members[i].hp <= 100
+		     and not ws
+		     and not (pws
+		     or (pws and pwsTime - GetTime() < 0.7))
+		     and ni.spell.valid(ni.members[i].unit, 48066, false, true, true) then
+					 ni.spell.cast(48066, ni.members[i].unit)
+					 return true
+					end
+				end
+			end
 		end
 	end,
 -----------------------------------
@@ -106,9 +219,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -118,9 +233,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -130,11 +247,13 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mana Potions (Use)"] = function()
+		local value, enabled = GetSetting("manapotionuse");
 		local mpot = { 33448, 43570, 40087, 42545, 39671 }
 		for i = 1, #mpot do
-			if ni.player.power() < 25
+			if enabled
+			 and ni.player.power() < value
 			 and ni.player.hasitem(mpot[i])
-			 and ni.player.itemcd(mpot[i]) == 0  then
+			 and ni.player.itemcd(mpot[i]) == 0 then
 				ni.player.useitem(mpot[i])
 				return true
 			end
@@ -145,7 +264,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -185,7 +304,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Desperate Prayer"] = function()
-		if ni.player.hp() < 20
+		local value, enabled = GetSetting("despplayer");
+		if enabled
+		 and ni.player.hp() < value
 		 and IsSpellKnown(48173)
 		 and ni.spell.isinstant(48173) 
 		 and ni.spell.available(48173) then
@@ -203,8 +324,64 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Power Infusion"] = function()
+		local _, enabled = GetSetting("powerinfus")
+		if enabled
+		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
+		 and ni.unit.exists("focus")
+		 and not ni.unit.buff("focus", 10060)
+		 and (not ni.unit.buff("focus", 2825)
+		 or not ni.unit.buff("focus", 32182))
+		 and ni.spell.isinstant(10060) 
+		 and ni.spell.available(10060)
+		 and ni.data.darhanger.CDsaverTTD("target")
+		 and ni.spell.valid("focus", 10060, false, true, true) then
+			ni.spell.cast(10060, "focus")
+			return true
+		end
+	end,
+-----------------------------------
+	["Shackle Undead (Auto Use)"] = function()        
+		local _, enabled = GetSetting("shackundead")
+		if enabled 
+		 and ni.unit.exists("target")
+		 and ni.spell.available(10955)
+		 and UnitCanAttack("player", "target") then
+		 table.wipe(enemies);
+		  enemies = ni.unit.enemiesinrange("player", 25)
+		  local dontShackle = false
+		  for i = 1, #enemies do
+		   local tar = enemies[i].guid; 
+		   if ni.unit.creaturetype(enemies[i].guid) == 6
+		    and ni.unit.debuff(tar, 10955, "player") then
+			dontShackle = true
+			break
+		end
+        end
+		if not dontShackle then
+		 for i = 1, #enemies do
+		 local tar = enemies[i].guid; 
+		  if ni.unit.creaturetype(enemies[i].guid) == 6
+		   and not ni.unit.isboss(tar)
+		   and not ni.unit.debuffs(tar, "23920||35399||69056", "EXACT")
+		   and not ni.unit.debuff(tar, 10955, "player")
+		   and ni.spell.valid(enemies[i].guid, 10955, false, true, true)
+		   and GetTime() - ni.data.darhanger.priest.lastShackle > 1.5 then
+				ni.spell.cast(10955, tar)
+				ni.data.darhanger.priest.lastShackle = GetTime()
+                        return true
+					end
+				end
+			end
+		end
+	end,
+-----------------------------------
 	["Inner Focus"] = function()
-		if ni.healing.averagehp(9) < 35
+		local _, enabled = GetSetting("innerhymn");
+		local valueHp = GetSetting("innerhymnhp");
+		local valueCount = GetSetting("innerhymncount");		
+		if enabled
+		 and ni.members.averageof(valueCount) < valueHp
 		 and ni.spell.isinstant(14751)
 		 and ni.spell.available(14751)
 		 and ni.spell.isinstant(48066)
@@ -219,7 +396,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Divine Hymn"] = function()
-		if ni.player.buff(14751)
+		local _, enabled = GetSetting("innerhymn");
+		if enabled
+		 and ni.player.buff(14751)
 		 and not ni.player.ismoving()
 		 and ni.spell.available(64843)
 		 and UnitChannelInfo("player") == nil then
@@ -231,7 +410,7 @@ local abilities = {
 	["Tank Heal"] = function()
 		local tank, offTank = ni.tanks()
 		-- Main Tank Heal
-		if UnitExists(tank) then
+		if ni.unit.exists(tank) then
 		 local rnewtank, _, _, _, _, _, rnewtank_time = ni.unit.buff(tank, 48068, "player")
 		 local pwstank, _, _, _, _, _, pwstank_time = ni.unit.buff(tank, 48066, "player")
 		 local ws = ni.unit.debuff(tank, 6788)
@@ -257,7 +436,7 @@ local abilities = {
 		end
 		-- Off Tank heal
 		if offTank ~= nil
-		 and UnitExists(offTank) then
+		 and ni.unit.exists(offTank) then
 		 local rnewotank, _, _, _, _, _, rnewotank_time = ni.unit.buff(offTank, 48068, "player")
 		 local pwotank, _, _, _, _, _, pwotank_time = ni.unit.buff(offTank, 48066, "player")
 		 local ws = ni.unit.debuff(offTank, 6788)
@@ -284,184 +463,191 @@ local abilities = {
 	end,
 -----------------------------------
 	["Pain Suppression"] = function()
-		for i = 1, #ni.members do
-		if ni.members[i].hp < 20
+		local value, enabled = GetSetting("painsupp");
+		if enabled
 		 and ni.spell.available(33206)
-		 and ni.spell.isinstant(33206)
-		 and ni.spell.valid(ni.members[i].unit, 33206, false, true, true) then
-			ni.spell.cast(33206, ni.members[i].unit)
-			return true
+		 and ni.spell.isinstant(33206) then
+		  for i = 1, #ni.members do
+		   if ni.members[i].hp < value
+			and ni.spell.valid(ni.members[i].unit, 33206, false, true, true) then
+				ni.spell.cast(33206, ni.members[i].unit)
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Power Word: Shield (Emergency)"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].range
-		 and not UnitIsDeadOrGhost(ni.members[i].unit) then
-		 local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
-		 local pws,_,_,_,_,_,pwsTime = ni.unit.buff(ni.members[i].unit, 48066, "player")
-		 local ws = ni.unit.debuff(ni.members[i].unit, 6788)
-		  if tarCount ~= nil and tarCount >= 1
-		   and not ws
-                   and not (pws
-                   or (pws and pwsTime - GetTime() < 0.7))
-		   and ni.spell.isinstant(48066)
-		   and ni.spell.available(48066, ni.members[i].unit)
-		   and ni.unit.threat(ni.members[i].guid) >= 2
-		   and ni.spell.valid(ni.members[i].unit, 48066, false, true, true) then
-				ni.spell.cast(48066, ni.members[i].unit)
-				return true
+		if ni.spell.isinstant(48066)
+		and ni.spell.available(48066) then
+		 for i = 1, #ni.members do
+		  if ni.members[i].range
+		   and not UnitIsDeadOrGhost(ni.members[i].unit) then
+		   local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
+		   local pws,_,_,_,_,_,pwsTime = ni.unit.buff(ni.members[i].unit, 48066, "player")
+		   local ws = ni.unit.debuff(ni.members[i].unit, 6788)
+		    if tarCount ~= nil 
+			 and tarCount >= 1
+		     and not ws
+             and not (pws
+             or (pws and pwsTime - GetTime() < 0.7))
+		     and ni.unit.threat(ni.members[i].guid) >= 2
+		     and ni.spell.valid(ni.members[i].unit, 48066, false, true, true) then
+					ni.spell.cast(48066, ni.members[i].unit)
+					return true
+					end
 				end
 			end
 		end
 	end,
 -----------------------------------
 	["Prayer of Mending"] = function()
-		for i = 1, #ni.members do
-		if ni.members[i].hp < 95
-		 and ni.spell.isinstant(48113)
-		 and ni.spell.available(48113)
-		 and  not ni.unit.buff(ni.members[i].unit, 48113, "player")
-		 and ni.spell.valid(ni.members[i].unit, 48113, false, true, true) then
-			ni.spell.cast(48113, ni.members[i].unit)
-			return true
+		if ni.spell.isinstant(48113)
+		 and ni.spell.available(48113) then
+		  for i = 1, #ni.members do
+		   if ni.members[i].hp < 95
+		   and not ni.unit.buff(ni.members[i].unit, 48113, "player")
+		   and ni.spell.valid(ni.members[i].unit, 48113, false, true, true) then
+				ni.spell.cast(48113, ni.members[i].unit)
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Penance (Emergency)"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].range then
-		 local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
-		  if (ni.members[i].hp < 80
-		  or (tarCount ~= nil and tarCount >= 1))
-		  and not ni.player.ismoving()
-		  and ni.spell.isinstant(53007)
-		  and ni.spell.available(53007)
-		  and ni.spell.valid(ni.members[i].unit, 53007, false, true, true) then
-				ni.spell.cast(53007, ni.members[i].unit)
-				return true
+		if not ni.player.ismoving()
+		 and ni.spell.available(53007) then
+		  for i = 1, #ni.members do
+		   if ni.members[i].range then
+		    local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
+		    if (ni.members[i].hp < 80
+		     or (tarCount ~= nil and tarCount >= 1))
+		     and ni.spell.valid(ni.members[i].unit, 53007, false, true, true) then
+					ni.spell.cast(53007, ni.members[i].unit)
+					return true
+					end
 				end
 			end
 		end
 	end,
 -----------------------------------
 	["Power Word: Shield (All)"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].range
-		 and not UnitIsDeadOrGhost(ni.members[i].unit) then
-		  local pws,_,_,_,_,_,pwsTime = ni.unit.buff(ni.members[i].unit, 48066, "player")
-		  local ws = ni.unit.debuff(ni.members[i].unit, 6788)
-		  if ni.members[i].hp < 95
-		   and not ws
-		   and not (pws
-		   or (pws and pwsTime - GetTime() < 0.7))
-		   and ni.spell.isinstant(48066)
-		   and ni.spell.available(48066)
-		   and ni.spell.valid(ni.members[i].unit, 48066, false, true, true) then
-				ni.spell.cast(48066, ni.members[i].unit)
-				return true
+		if ni.spell.isinstant(48066)
+		and ni.spell.available(48066) then
+		 for i = 1, #ni.members do
+		  if ni.members[i].range
+		   and not UnitIsDeadOrGhost(ni.members[i].unit) then
+		   local pws,_,_,_,_,_,pwsTime = ni.unit.buff(ni.members[i].unit, 48066, "player")
+		   local ws = ni.unit.debuff(ni.members[i].unit, 6788)
+		   if ni.members[i].hp < 95
+		    and not ws
+		    and not (pws
+		    or (pws and pwsTime - GetTime() < 0.7))
+		    and ni.spell.valid(ni.members[i].unit, 48066, false, true, true) then
+					ni.spell.cast(48066, ni.members[i].unit)
+					return true
+					end
 				end
 			end
 		end
 	end,
 -----------------------------------
 	["Prayer of Healing"] = function()
-		for i = 1, #ni.members do
 		if ni.spell.available(48072)
 		 and not ni.player.ismoving() then 
 		 -- Heal party with Prayer
-		if ni.healing.averagehp(3) < 75
-		 and ni.members[i].hp < 75
-		 and ni.spell.valid(ni.members[i].unit, 48072, false, true, true) then
-			ni.spell.cast(48072, ni.members[i].unit)
+		if ni.members.averageof(3) < 75
+		 and ni.members[1].hp < 75
+		 and ni.spell.valid(ni.members[1].unit, 48072, false, true, true) then
+			ni.spell.cast(48072, ni.members[1].unit)
 			return true
 		end
 		 -- Heal raid with Prayer
 		if ni.data.darhanger.youInRaid()
-		 and ni.healing.averagehp(4) < 75
-		 and ni.members[i].hp < 75
-		 and ni.spell.valid(ni.members[i].unit, 48072, false, true, true) then
-			ni.spell.cast(48072, ni.members[i].unit)
+		 and ni.members.averageof(4) < 75
+		 and ni.members[1].hp < 75
+		 and ni.spell.valid(ni.members[1].unit, 48072, false, true, true) then
+			ni.spell.cast(48072, ni.members[1].unit)
+				return true
+			end
+		end
+	end,
+-----------------------------------
+	["Renew"] = function()
+		if ni.spell.isinstant(48068)
+		 and ni.spell.available(48068) then
+		 for i = 1, #ni.members do
+		  if ni.members[i].hp < 90
+		  and not ni.unit.buff(ni.members[i].unit, 48068, "player")
+		  and ni.spell.valid(ni.members[i].unit, 48068, false, true, true) then
+				ni.spell.cast(48068, ni.members[i].unit)
 				return true
 				end
 			end
 		end
 	end,
 -----------------------------------
-	["Renew"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].hp < 90
-		 and ni.spell.isinstant(48068)
-		 and ni.spell.available(48068)
-		 and not ni.unit.buff(ni.members[i].unit, 48068, "player")
-		 and ni.spell.valid(ni.members[i].unit, 48068, false, true, true) then
-			ni.spell.cast(48068, ni.members[i].unit)
-			return true
-			end
-		end
-	end,
------------------------------------
 	["Binding Heal"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].hp < 75
-		 and ni.player.hp() < 75
-		 and ni.spell.available(48120)
-		 and not ni.player.ismoving()
-		 and ni.spell.valid(ni.members[i].unit, 48120, false, true, true) then
-			ni.spell.cast(48120, ni.members[i].unit)
-			return true
+		if ni.spell.available(48120)
+		 and not ni.player.ismoving() then
+		  for i = 1, #ni.members do
+		   if ni.members[i].hp < 75
+		   and ni.player.hp() < 75
+		   and ni.spell.valid(ni.members[i].unit, 48120, false, true, true) then
+				ni.spell.cast(48120, ni.members[i].unit)
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
-	["Abolish Disease"] = function()
-		local zone = GetZoneText()
-		if zone == "The Ruby Sanctum" then
-			return false
-		end 
-		for i = 1, #ni.members do
-		if ni.unit.debufftype(ni.members[i].unit, "Disease")
-		 and ni.spell.available(552)
-		 and ni.spell.isinstant(552)
-		 and ni.healing.candispel(ni.members[i].unit)
-		 and GetTime() - ni.data.darhanger.LastDispel > 2
-		 and not ni.unit.buff(ni.members[i].unit, 552)
-		 and ni.spell.valid(ni.members[i].unit, 552, false, true, true) then
-			ni.spell.cast(552, ni.members[i].unit)
-			ni.data.darhanger.LastDispel = GetTime()
-			return true
+	["Abolish Disease (Member)"] = function() 
+		local _, enabled = GetSetting("abolishmb")
+		if enabled
+		and ni.spell.available(552)
+		and ni.spell.isinstant(552) then
+		 for i = 1, #ni.members do
+		  if ni.unit.debufftype(ni.members[i].unit, "Disease")
+		  and ni.healing.candispel(ni.members[i].unit)
+		  and GetTime() - ni.data.darhanger.LastDispel > 1.2
+		  and not ni.unit.buff(ni.members[i].unit, 552)
+		  and ni.spell.valid(ni.members[i].unit, 552, false, true, true) then
+				ni.spell.cast(552, ni.members[i].unit)
+				ni.data.darhanger.LastDispel = GetTime()
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
-	["Dispel Magic"] = function()
-		local zone = GetZoneText()
-		if zone == "The Ruby Sanctum" then
-			return false
-		end 
-		for i = 1, #ni.members do
-		if ni.unit.debufftype(ni.members[i].unit, "Magic")
+	["Dispel Magic (Member)"] = function()
+		local _, enabled = GetSetting("dispelmagmemb")
+		if enabled
 		 and ni.spell.available(988)
-		 and ni.spell.isinstant(988)
-		 and ni.healing.candispel(ni.members[i].unit)
-		 and GetTime() - ni.data.darhanger.LastDispel > 2
-		 and ni.spell.valid(ni.members[i].unit, 988, false, true, true) then
-			ni.spell.cast(988, ni.members[i].unit)
-			ni.data.darhanger.LastDispel = GetTime()
-			return true
+		 and ni.spell.isinstant(988) then
+		  for i = 1, #ni.members do
+		   if ni.unit.debufftype(ni.members[i].unit, "Magic")
+		   and ni.healing.candispel(ni.members[i].unit)
+		   and GetTime() - ni.data.darhanger.LastDispel > 1.2
+		   and ni.spell.valid(ni.members[i].unit, 988, false, true, true) then
+				ni.spell.cast(988, ni.members[i].unit)
+				ni.data.darhanger.LastDispel = GetTime()
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Flash Heal"] = function()
-		for i = 1, #ni.members do
-		if ni.members[i].hp < 65
-		 and ni.spell.available(48071)
-		 and ni.spell.valid(ni.members[i].unit, 48071, false, true, true) then
-			ni.spell.cast(48071, ni.members[i].unit)
-			return true
+		if ni.spell.available(48071)
+		 and not ni.player.ismoving() then
+		  for i = 1, #ni.members do
+		   if ni.members[i].hp < 65
+		    and ni.spell.valid(ni.members[i].unit, 48071, false, true, true) then
+				ni.spell.cast(48071, ni.members[i].unit)
+				return true
+				end
 			end
 		end
 	end,
@@ -469,10 +655,10 @@ local abilities = {
 	["Window"] = function()
 		if not popup_shown then
 		  ni.debug.popup("Discipline Priest by DarhangeR for 3.3.5a", 
-		 "Welcome to Discipline Priest Profile! Support and more in Discord > https://discord.gg/TEQEJYS.\n\n--Profile Function--\n-For enable priority healing Main Tank & Off Tank put tank name to Tank Overrides and press Enable Main/Off")
+		 "Welcome to Discipline Priest Profile! Support and more in Discord > https://discord.gg/TEQEJYS.\n\n--Profile Function--\n-For enable priority healing Main Tank & Off Tank put tank name to Tank Overrides and press Enable Main/Off\n-For use Power Infusion focus your ally or yourself.")
 		popup_shown = true;
 		end 
 	end,
 }
 
-ni.bootstrap.rotation("Discipline_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Discipline_DarhangeR", queue, abilities, data, { [1] = "Discipline Priest by DarhangeR", [2] = items });

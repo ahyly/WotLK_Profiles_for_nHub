@@ -1,18 +1,70 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
-local queue = {
+local enemies = { };
+local items = {
+	settingsfile = "DarhangeR_Affli.xml",
+	{ type = "title", text = "Affliction Warlock by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Fel Armor", enabled = true, key = "felarmor" },
+	{ type = "entry", text = "Demon Armor", enabled = false, key = "demonarmor" },
+	{ type = "entry", text = "Soul Stone", enabled = true, key = "soulstone" },
+	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Death Coil", enabled = true, value = 47, key = "coil" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Shadowflame", enabled = true, key = "flame" },
+	{ type = "entry", text = "Banish (Auto Use)", enabled = false, key = "banish" },
+	{ type = "separator" },
+	{ type = "title", text = "Summoning Pets" },
+    { type = "dropdown", menu = {
+        { selected = false, value = 688, text = "Summon Imp" },
+        { selected = false, value = 697, text = "Summon Voidwalker" },
+        { selected = false, value = 712, text = "Summon Succubus" },
+        { selected = true, value = 691, text = "Summon Felhunter" },
+    }, key = "Pet" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end	
+
+local queue = {	
 	"Window",	
 	"AutoTarget",
 	"Universal pause",
 	"Life Tap (Regen)",
+	"Summon pet",
 	"Spell Stone",
 	"Soulstone",
 	"Healthstone",	
 	"Fel Armor",
+	"Demon Armor",
 	"Fel Domination",
-	"Summon pet (Fellhunter)",
 	"Soul Link",
+	"Shadow Ward",
 	"Combat specific Pause",
 	"Pet Attack/Follow",
 	"Healthstone (Use)",
@@ -27,6 +79,7 @@ local queue = {
 	"Life Tap (Glyph Buff)",
 	"Life Tap",
 	"Death Coil",
+	"Banish (Auto Use)",
 	"Shadow Bolt (Non cast)",
 	"Curse of Elements",
 	"Shadow Bolt (Shadow Mastery Check)",
@@ -50,9 +103,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -75,7 +129,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Soulstone"] = function()
-		if not ni.player.hasitem(36895)
+		local _, enabled = GetSetting("soulstone")
+        if enabled
+		 and not ni.player.hasitem(36895)
 		 and not ni.player.ismoving()
 		 and not UnitAffectingCombat("player")
 		 and IsUsableSpell(GetSpellInfo(47884))
@@ -83,7 +139,8 @@ local abilities = {
 			ni.spell.cast(47884)
 			return true
 		 else
-		 if UnitExists("focus")
+		 if enabled
+		 and ni.unit.exists("focus")
 		 and UnitInRange("focus")
 		 and ni.player.hasitem(36895)
 		 and not UnitIsDeadOrGhost("focus")
@@ -97,58 +154,85 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone"] = function()
-		local hstones = { 36892, 36893, 36894 }
-		if ni.data.darhanger.warlock.Stones == nil then
-			for b = 0, 4 do
-			for s = 1, GetContainerNumSlots(b) do
-			for i = 1, #hstones do
-			if GetContainerItemID(b, s) == hstones[i] then
-				Stones = true;
-			break
-						end
-					end
-				end
+		local _, enabled = GetSetting("healthstoneuse")
+		local hstones = { 36892, 36893, 36894 };
+		local has = false;
+		 for k, v in pairs(hstones) do
+		  if ni.player.hasitem(v) then
+				has = true;
+				break;
 			end
 		end
-		if Stones == nil
-		and IsUsableSpell(GetSpellInfo(47878))
-		and ni.spell.available(47878)
-		and not ni.player.ismoving()
-		and not UnitAffectingCombat("player") then
+		if enabled
+		 and not has
+		 and IsUsableSpell(GetSpellInfo(47878))
+		 and ni.spell.available(47878)
+		 and not ni.player.ismoving()
+		 and not UnitAffectingCombat("player") then
 			ni.spell.cast(47878)
 			return true
 		end
 	end,
 -----------------------------------
-	["Fel Armor"] = function()
-		if not ni.player.buff(47893)
-		 and ni.spell.available(47893)
-		 and ni.spell.isinstant(47893) then
-			ni.spell.cast(47893)
-			return true
-		end
-	end,
+    ["Fel Armor"] = function()
+		local _, enabled = GetSetting("felarmor")
+        if enabled
+         and not ni.player.buff(47893)
+         and ni.spell.available(47893)
+         and ni.spell.isinstant(47893) then
+            ni.spell.cast(47893)
+            return true
+        end
+    end,
+-----------------------------------
+    ["Demon Armor"] = function()
+		local _, enabled = GetSetting("demonarmor")
+        if enabled
+         and not ni.player.buff(47889)
+         and ni.spell.available(47889)
+         and ni.spell.isinstant(47889) then
+            ni.spell.cast(47889)
+            return true
+        end
+    end,
 -----------------------------------
 	["Fel Domination"] = function()
-		if not UnitExists("playerpet")
+		local pet = GetSetting("Pet");
+		if not ni.unit.exists("playerpet")
 		 and ni.spell.isinstant(18708)
-		 and ni.spell.available(ni.data.darhanger.warlock.petAffli)
-		 and IsUsableSpell(GetSpellInfo(ni.data.darhanger.warlock.petAffli))
+		 and not ni.player.buff(61431)
+		 and ni.spell.available(pet)
+		 and IsUsableSpell(GetSpellInfo(pet))
 		 and ni.spell.available(18708) then
 			ni.spell.cast(18708)
 			return true
 		end
 	end,
 -----------------------------------
-	["Summon pet (Fellhunter)"] = function()
-		if not UnitExists("playerpet")
+	["Summon pet"] = function()
+		local pet = GetSetting("Pet");
+		if not ni.unit.exists("playerpet")
 		 and not ni.player.buff(61431)
 		 and not ni.player.ismoving()
 		 and not UnitAffectingCombat("player")
-		 and IsUsableSpell(GetSpellInfo(ni.data.darhanger.warlock.petAffli))
-		 and ni.spell.available(ni.data.darhanger.warlock.petAffli)
+		 and IsUsableSpell(GetSpellInfo(pet))
+		 and ni.spell.available(pet)
 		 and GetTime() - ni.data.darhanger.warlock.LastSummon > 2 then
-			ni.spell.cast(ni.data.darhanger.warlock.petAffli)
+			ni.spell.cast(pet)
+			ni.data.darhanger.warlock.LastSummon = GetTime()
+			return true
+		end
+		local pet = GetSetting("Pet");
+		if IsSpellKnown(18708)
+		 and ni.spell.available(18708)
+		 and not ni.unit.exists("playerpet")
+		 and not ni.player.buff(61431)
+		 and not ni.player.ismoving()
+		 and UnitAffectingCombat("player")
+		 and IsUsableSpell(GetSpellInfo(pet))
+		 and ni.spell.available(pet)
+		 and GetTime() - ni.data.darhanger.warlock.LastSummon > 2 then
+			ni.spell.cast(pet)
 			ni.data.darhanger.warlock.LastSummon = GetTime()
 			return true
 		end
@@ -156,7 +240,7 @@ local abilities = {
 -----------------------------------
 	["Soul Link"] = function()
 		if ni.spell.available(19028)
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and not ni.player.buff(19028)
 		 and ni.spell.isinstant(19028) then
 			ni.spell.cast(19028)
@@ -166,16 +250,16 @@ local abilities = {
 -----------------------------------
 	["Pet Attack/Follow"] = function()
 		if ni.unit.hp("playerpet") < 20
-		 and UnitExists("playerpet")
-		 and UnitExists("target")
+		 and ni.unit.exists("playerpet")
+		 and ni.unit.exists("target")
 		 and UnitIsUnit("target", "pettarget")
 		 and not UnitIsDeadOrGhost("playerpet") then
 			ni.data.darhanger.petFollow()
 		 else
 		if UnitAffectingCombat("player")
-		 and UnitExists("playerpet")
+		 and ni.unit.exists("playerpet")
 		 and ni.unit.hp("playerpet") > 60
-		 and UnitExists("target")
+		 and ni.unit.exists("target")
 		 and not UnitIsUnit("target", "pettarget")
 		 and not UnitIsDeadOrGhost("playerpet") then 
 			ni.data.darhanger.petAttack()
@@ -193,9 +277,18 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Shadow Ward"] = function()
+		if ni.data.darhanger.warlock.ShadowWard()
+		 and ni.spell.isinstant(47891)
+		 and ni.spell.available(47891) then
+		 	ni.spell.cast(47891)
+			return true
+		end
+	end,
+-----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.casterStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.casterStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -203,11 +296,26 @@ local abilities = {
 			return true
 		end
 	end,
+	["Spell Lock (Interrupt)"] = function()
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled
+		 and ni.spell.shouldinterrupt("target")
+		 and IsSpellKnown(19647, true)
+		 and GetSpellCooldown(19647) == 0
+		 and GetTime() - ni.data.darhanger.LastInterrupt > 9 then
+			ni.spell.castinterrupt("target")
+			ni.data.darhanger.LastInterrupt = GetTime()
+			return true
+		end
+	end,
+	
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.power() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -217,9 +325,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -229,11 +339,13 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mana Potions (Use)"] = function()
+		local value, enabled = GetSetting("manapotionuse");
 		local mpot = { 33448, 43570, 40087, 42545, 39671 }
 		for i = 1, #mpot do
-			if ni.player.power() < 25
+			if enabled
+			 and ni.player.power() < value
 			 and ni.player.hasitem(mpot[i])
-			 and ni.player.itemcd(mpot[i]) == 0  then
+			 and ni.player.itemcd(mpot[i]) == 0 then
 				ni.player.useitem(mpot[i])
 				return true
 			end
@@ -244,7 +356,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -255,7 +367,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 47809) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -276,7 +388,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.valid("target", 47809) then
 			ni.player.useinventoryitem(10)
@@ -288,14 +400,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 47809) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ni.spell.valid("target", 47809) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -304,7 +416,9 @@ local abilities = {
 	end,
 -----------------------------------		
 	["Spell Lock (Interrupt)"] = function()
-		if ni.spell.shouldinterrupt("target")
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled
+		 and ni.spell.shouldinterrupt("target")
 		 and IsSpellKnown(19647, true)
 		 and GetSpellCooldown(19647) == 0
 		 and GetTime() - ni.data.darhanger.LastInterrupt > 9 then
@@ -313,6 +427,7 @@ local abilities = {
 			return true
 		end
 	end,
+	
 -----------------------------------	
 	["Soulshatter"] = function()
 		if #ni.members > 1
@@ -326,7 +441,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Shadowflame"] = function()	
-		if ni.player.distance("target") < 6
+		local _, enabled = GetSetting("flame")
+		if enabled 
+		 and ni.player.distance("target") < 6.5
 		 and ni.spell.available(61290)
 		 and ni.spell.isinstant(61290) then
 			ni.spell.cast(61290)
@@ -372,9 +489,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Death Coil"] = function()
-		if ni.player.hp() < 47
-		 and ni.spell.available(47860)
+		local value, enabled = GetSetting("coil");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(47860)
+		 and ni.spell.available(47860)
 		 and ni.spell.valid("target", 47860, true, true) then
 			ni.spell.cast(47860, "target")
 			return true
@@ -425,7 +544,7 @@ local abilities = {
 		 and not (elem or CotE or eplag or earmoon)
 		 and ni.spell.available(47865)
 		 and ni.spell.isinstant(47865)
-		 and ni.data.darhanger.CDsaver()
+		 and ni.data.darhanger.CDsaver("target")
 		 and ni.spell.valid("target", 47865, false, true, true)	
 		 and GetTime() - ni.data.darhanger.warlock.LastCurse > 2 then
 			ni.spell.cast(47865, "target")
@@ -435,11 +554,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Corruption AoE"] = function()
-		local enemies;
-		if UnitExists("target")
+		if ni.unit.exists("target")
 		 and ni.spell.available(47813)
 		 and ni.spell.isinstant(47813)
 		 and UnitCanAttack("player", "target") then
+		    table.wipe(enemies); 
 			enemies = ni.unit.enemiesinrange("target", 15)
 			for i = 1, #enemies do
 				local tar = enemies[i].guid; 
@@ -533,6 +652,43 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Banish (Auto Use)"] = function()        
+		local _, enabled = GetSetting("banish")
+		if enabled 
+		 and ni.unit.exists("target")
+		 and ni.spell.available(18647)
+		 and UnitCanAttack("player", "target") then
+		 table.wipe(enemies);
+		  enemies = ni.unit.enemiesinrange("player", 25)
+		  local dontBanish = false
+		  for i = 1, #enemies do
+		   local tar = enemies[i].guid; 
+		   if (ni.unit.creaturetype(enemies[i].guid) == 3
+		    or ni.unit.creaturetype(enemies[i].guid) == 4)
+		    and ni.unit.debuff(tar, 18647, "player") then
+			dontBanish = true
+			break
+		end
+        end
+		if not dontBanish then
+		 for i = 1, #enemies do
+		 local tar = enemies[i].guid; 
+		  if (ni.unit.creaturetype(enemies[i].guid) == 3
+		   or ni.unit.creaturetype(enemies[i].guid) == 4)
+		   and not ni.unit.isboss(tar)
+		   and not ni.unit.debuffs(tar, "23920||35399||69056", "EXACT")
+		   and not ni.unit.debuff(tar, 18647, "player")
+		   and ni.spell.valid(enemies[i].guid, 18647, false, true, true)
+		   and GetTime() - ni.data.darhanger.warlock.LastBanish > 1.5 then
+				ni.spell.cast(18647, tar)
+				ni.data.darhanger.warlock.LastBanish = GetTime()
+                        return true
+					end
+				end
+			end
+		end
+	end,
+-----------------------------------
 	["Window"] = function()
 		if not popup_shown then
 		 ni.debug.popup("Affliction Warlock by DarhangeR for 3.3.5a", 
@@ -542,4 +698,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Affliction_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Affliction_DarhangeR", queue, abilities, data, { [1] = "Affliction Warlock by DarhangeR", [2] = items });

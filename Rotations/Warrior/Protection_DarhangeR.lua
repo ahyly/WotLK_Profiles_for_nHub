@@ -1,17 +1,71 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
+local enemies = { };
+local function ActiveEnemies()
+	table.wipe(enemies);
+	enemies = ni.unit.enemiesinrange("target", 7);
+	for k, v in ipairs(enemies) do
+		if ni.player.threat(v.guid) == -1 then
+			table.remove(enemies, k);
+		end
+	end
+	return #enemies;
+end
+local items = {
+	settingsfile = "DarhangeR_ProtоWarrior.xml",
+	{ type = "title", text = "Protection Warrior by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Battle Shout", enabled = false, key = "battleshout" },
+	{ type = "entry", text = "Commanding Shout", enabled = true, key = "commandshout" },
+	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Berserker Rage (Anti-Contol)", enabled = true, key = "bersrage" },
+	{ type = "entry", text = "Last Stand + Enraged Regeneration", enabled = true, value = 27, key = "regen" },
+	{ type = "entry", text = "Shield Wall", enabled = true, value = 37, key = "wall" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Rend (Boss only)", enabled = true, key = "rend" },
+	{ type = "entry", text = "Thunder Clap (AoE)", enabled = true, key = "thunder" },
+	{ type = "entry", text = "Heroic Strike/Cleave minimal rage", value = 35, key = "heroiccleave" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+
 local queue = {
 	"Window",
 	"Universal pause",
 	"AutoTarget",
 	"Defensive Stance",
 	"Commanding Shout",
+	"Battle Shout",
 	"Vigilance",
 	"Berserker Rage",
 	"Combat specific Pause",
 	"Healthstone (Use)",
-	"Potions (Use)",
+	"Heal Potions (Use)",
 	"Racial Stuff",
 	"Shield Bash (Interrupt)",
 	"Last Stand",
@@ -26,7 +80,7 @@ local queue = {
 	"Rend",
 	"Shield Block",
 	"Shield Slam",
-	"Thunder Clap",
+	"Thunder Clap (AoE)",
 	"Devastate",
 }
 local abilities = {
@@ -39,9 +93,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -54,11 +109,26 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Battle Shout"] = function()
+		local _, enabled = GetSetting("battleshout")
+		if ni.player.buffs("47436||48932||48934") then 
+		 return false
+	end
+		if enabled
+		 and ni.spell.available(47436)
+		 and ni.spell.isinstant(47436) then
+			ni.spell.cast(47436)	
+			return true
+		end
+	end,		 
+-----------------------------------
 	["Commanding Shout"] = function()
+		local _, enabled = GetSetting("commandshout")
 		if ni.player.buffs("47440||47440") then 
 		 return false
 	end
-		if ni.spell.available(47440) 
+		if enabled
+		 and ni.spell.available(47440) 
 		 and ni.spell.isinstant(47440) then
 			ni.spell.cast(47440)	
 			return true
@@ -66,7 +136,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Vigilance"] = function()
-		if UnitExists("focus")
+		if ni.unit.exists("focus")
 		 and UnitInRange("focus")
 		 and not UnitIsDeadOrGhost("focus")
 		 and not ni.unit.buff("focus", 50720) 
@@ -77,20 +147,19 @@ local abilities = {
 	end,	
 -----------------------------------
 	["Berserker Rage"] = function()
-		local bad = { 6215, 8122, 5484, 2637, 5246, 6358 }
-		for i = 1, #bad do
-		 if ni.player.debuff(bad[i])
-		  and ni.spell.isinstant(18499) 
-	          and ni.spell.available(18499) then
-		      ni.spell.cast(18499)
-		      return true
-			end
+		local _, enabled = GetSetting("bersrage")
+		if enabled
+		 and ni.data.darhanger.Berserk("player")
+		 and ni.spell.isinstant(18499) 
+	     and ni.spell.available(18499) then
+		    ni.spell.cast(18499)
+		    return true
 		end
-	end,
+	end,	
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.tankStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.tankStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -100,9 +169,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -111,10 +182,12 @@ local abilities = {
 		end	
 	end,
 -----------------------------------
-	["Potions (Use)"] = function()
+	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -127,7 +200,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -156,7 +229,9 @@ local abilities = {
 		end,
 -----------------------------------
 	["Shield Bash (Interrupt)"] = function()
-		if ni.spell.shouldinterrupt("target")
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled	
+		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.isinstant(72) 
 		 and ni.spell.available(72)
 		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
@@ -168,7 +243,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Last Stand"] = function()
-		if ni.player.hp() < 25
+		local value, enabled = GetSetting("regen");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(12975) 
 		 and ni.spell.available(12975) then
 			ni.spell.cast(12975)
@@ -178,28 +255,28 @@ local abilities = {
 -----------------------------------
 	["Enraged Regeneration"] = function()
 		local enrage = { 18499, 12292, 29131, 14204, 57522 }
-		for i = 1, #enrage do
-		 if ni.player.buff(enrage[i])
-		 and ni.player.buff(12975)
+		if ni.player.buff(12975)
 		 and ni.spell.isinstant(55694) 
-		 and ni.spell.available(55694) then 
-			ni.spell.cast(55694)
+		 and ni.spell.available(55694) then
+		  for i = 1, #enrage do
+		   if ni.player.buff(enrage[i]) then
+		       ni.spell.cast(55694)
 		else
 		 if not ni.player.buff(enrage[i])
-		 and ni.spell.cd(2687) == 0
-		 and ni.spell.isinstant(2687) 
-		 and ni.spell.isinstant(55694) 
-		 and ni.spell.available(55694) 
-		 and ni.player.buff(12975) then
-		      ni.spell.castspells("2687|55694")
-				return true
-				end
+		  and ni.spell.cd(2687) == 0
+		  and ni.spell.isinstant(2687) then
+		       ni.spell.castspells("2687|55694")
+					return true
+					end
+			    end
 			end
 		end
 	end,
 -----------------------------------
 	["Shield Wall"] = function()
-		if ni.player.hp() < 37
+		local value, enabled = GetSetting("wall");
+		if enabled
+		 and ni.player.hp() < value
 		 and ni.spell.isinstant(871) 
 		 and ni.spell.available(871) then
 			ni.spell.cast(871)
@@ -208,7 +285,7 @@ local abilities = {
 	end,		 
 -----------------------------------
 	["Taunt"] = function()
-		if UnitExists("targettarget") 
+		if ni.unit.exists("targettarget") 
 		 and not UnitIsDeadOrGhost("targettarget")
 		 and UnitAffectingCombat("player")
 		 and (ni.unit.debuff("targettarget", 72410) 
@@ -224,6 +301,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Taunt (Ally)"] = function()
+        table.wipe(enemies);	
 		local enemies = ni.unit.enemiesinrange("target", 30)
 		for i = 1, #enemies do
 		local threatUnit = enemies[i].guid
@@ -241,7 +319,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mocking Blow"] = function()
-		if UnitExists("targettarget") 
+		if ni.unit.exists("targettarget") 
 		 and not UnitIsDeadOrGhost("targettarget")
 		 and UnitAffectingCombat("player")
 		 and (ni.unit.debuff("targettarget", 72410) 
@@ -267,8 +345,10 @@ local abilities = {
 	end,
 -----------------------------------
 	["Rend"] = function()
+		local _, enabled = GetSetting("rend")
 		local rend = ni.data.darhanger.warrior.rend()
-		if ni.unit.isboss("target")
+		if enabled
+		 and ni.unit.isboss("target")
 		 and (rend == nil or (rend - GetTime() <= 2))
 		 and ni.spell.isinstant(47465) 
 		 and ni.spell.available(47465, true)
@@ -296,9 +376,10 @@ local abilities = {
 		end
 	end,
 -----------------------------------
-	["Thunder Clap"] = function()
-		local enemies = ni.unit.enemiesinrange("target", 7)
-		if #enemies >= 1
+	["Thunder Clap (AoE)"] = function()
+		local _, enabled = GetSetting("thunder")
+		if enabled
+		 and ActiveEnemies() >= 1
 		 and ni.spell.available(47502, true)
 		 and ni.spell.valid("target", 47465, true, true) then
 			ni.spell.cast(47502)
@@ -307,9 +388,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Demoralizing Shout"] = function()
-		local enemies;
-		if UnitExists("target")
+		if ni.unit.exists("target")
 		 and UnitCanAttack("player", "target") then
+			table.wipe(enemies);
 			enemies = ni.unit.enemiesinrange("target", 8)
 			for i = 1, # enemies do
 				local tar = enemies[i].guid;
@@ -335,16 +416,17 @@ local abilities = {
 	end,
 -----------------------------------
 	["Heroic Strike + Cleave (Filler)"] = function()
-		local enemies = ni.unit.enemiesinrange("target", 5)
+		local value = GetSetting("heroiccleave");
 		if IsSpellInRange(GetSpellInfo(47475), "target") == 1
-		 and ni.player.power() > 35 then
-			if #enemies >= 1	
+		 and ni.spell.cd(47486) ~= 0 
+		 and ni.player.power() > value then
+			if ActiveEnemies() >= 1	
 			 and ni.spell.available(47520, true) 
 			 and not IsCurrentSpell(47520) then
 				ni.spell.cast(47520, "target")
 			return true
 		else
-			if #enemies == 0
+			if ActiveEnemies() == 0
 			 and ni.spell.available(47450, true)
 			 and not IsCurrentSpell(47450) then
 				ni.spell.cast(47450, "target")
@@ -363,4 +445,4 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Protection_DarhangeR", queue, abilities, data)
+ni.bootstrap.rotation("Protection_DarhangeR", queue, abilities, data, { [1] = "Protection Warrior by DarhangeR", [2] = items });

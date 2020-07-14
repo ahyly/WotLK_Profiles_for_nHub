@@ -1,14 +1,72 @@
 local data = {"DarhangeR.lua"}
-
 local popup_shown = false;
-local queue = {
+local items = {
+	settingsfile = "DarhangeR_Combat.xml",
+	{ type = "title", text = "Combat Rogue by DarhangeR" },
+	{ type = "separator" },
+	{ type = "title", text = "Main Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
+	{ type = "separator" },
+	{ type = "title", text = "Defensive Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Build Settings" },
+    { type = "dropdown", menu = {
+        { selected = true, value = 1, text = "Eviscerate Build" },
+        { selected = false, value = 2, text = "Rapture Build" },
+    }, key = "builds" },
+};
+local function GetSetting(name)
+    for k, v in ipairs(items) do
+        if v.type == "entry"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value, v.enabled
+        end
+        if v.type == "dropdown"
+         and v.key ~= nil
+         and v.key == name then
+            for k2, v2 in pairs(v.menu) do
+                if v2.selected then
+                    return v2.value
+                end
+            end
+        end
+    end
+end
+local EviscerateBuild = {
 	"Window",
 	"Universal pause",
 	"AutoTarget",
 	"Poison Weapon",
 	"Combat specific Pause",
 	"Healthstone (Use)",
-	"Potions (Use)",
+	"Heal Potions (Use)",
+	"Racial Stuff",
+	"Use enginer gloves",
+	"Trinkets",
+	"Kick (Interrupt)",
+	"Tricks of the Trade",
+	"Fan of Knives",
+	"Riposte",
+	"Adrenaline Rush",
+	"Blade Flurry",
+	"Killing Spree",
+	"Slice and Dice",
+	"Sinister Strike",
+	"Eviscerate",
+}
+local RaptureBuild = {
+	"Window",
+	"Universal pause",
+	"AutoTarget",
+	"Poison Weapon",
+	"Combat specific Pause",
+	"Healthstone (Use)",
+	"Heal Potions (Use)",
 	"Racial Stuff",
 	"Use enginer gloves",
 	"Trinkets",
@@ -23,7 +81,6 @@ local queue = {
 	"Sinister Strike",
 	"Rupture",
 	"Eviscerate Dump",
-	"Eviscerate",
 }
 local abilities = {
 -----------------------------------
@@ -35,9 +92,10 @@ local abilities = {
 -----------------------------------
 	["AutoTarget"] = function()
 		if UnitAffectingCombat("player")
-		 and (not UnitExists("target")
-		 or (UnitExists("target") 
-		 and not UnitCanAttack("player", "target"))) then
+		 and ((ni.unit.exists("target")
+		 and UnitIsDeadOrGhost("target")
+		 and not UnitCanAttack("player", "target")) 
+		 or not ni.unit.exists("target")) then
 			ni.player.runtext("/targetenemy")
 		end
 	end,
@@ -48,7 +106,7 @@ local abilities = {
 		 and GetTime() - applypoison > 4 then 
 			applypoison = nil 
 		end
-		if UnitAffectingCombat("player") == nil 
+		if not UnitAffectingCombat("player") 
 		and applypoison == nil then
 		applypoison = GetTime()
 		if mh == nil 
@@ -67,8 +125,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.meleeStop()
-		 or ni.data.darhanger.PlayerDebuffs()
+		if ni.data.darhanger.meleeStop("target")
+		 or ni.data.darhanger.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -78,9 +136,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Healthstone (Use)"] = function()
+		local value, enabled = GetSetting("healthstoneuse");
 		local hstones = { 36892, 36893, 36894 }
 		for i = 1, #hstones do
-			if ni.player.hp() < 35
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hstones[i]) 
 			 and ni.player.itemcd(hstones[i]) == 0 then
 				ni.player.useitem(hstones[i])
@@ -89,10 +149,12 @@ local abilities = {
 		end	
 	end,
 -----------------------------------
-	["Potions (Use)"] = function()
+	["Heal Potions (Use)"] = function()
+		local value, enabled = GetSetting("healpotionuse");
 		local hpot = { 33447, 43569, 40087, 41166, 40067 }
 		for i = 1, #hpot do
-			if ni.player.hp() < 30
+			if enabled
+			 and ni.player.hp() < value
 			 and ni.player.hasitem(hpot[i])
 			 and ni.player.itemcd(hpot[i]) == 0 then
 				ni.player.useitem(hpot[i])
@@ -105,7 +167,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken()
+		if ni.data.darhanger.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -116,7 +178,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -137,7 +199,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10) 
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(10)
@@ -149,14 +211,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(14)
 			return true
@@ -165,7 +227,9 @@ local abilities = {
 	end,
 -----------------------------------	
 	["Kick (Interrupt)"] = function()
-		if ni.spell.shouldinterrupt("target")
+		local _, enabled = GetSetting("autointerrupt")
+		if enabled	
+		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.available(1766)
 		 and ni.spell.isinstant(1766)
 		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
@@ -177,19 +241,20 @@ local abilities = {
 	end,
 -----------------------------------	
 	["Tricks of the Trade"] = function()
-		if ( ni.unit.threat("player", "target") >= 2
+		if ( ni.unit.threat("player") >= 2
 		 or ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and UnitExists("focus")
+		 and ni.unit.exists("focus")
 		 and ni.spell.available(57934)
 		 and ni.spell.valid("focus", 57934, false, true, true) then
 			ni.spell.cast(57934, "focus")
 			return true
 		else 
 		local tank = ni.tanks()
-		if ( ni.unit.threat("player", "target") >= 2
+		if ( ni.unit.threat("player") >= 2
 		 or ni.vars.combat.cd or ni.unit.isboss("target") )
-		  and not UnitExists("focus")
+		  and not ni.unit.exists("focus")
 		  and ni.spell.available(57934)
+		  and ni.data.darhanger.youInInstance() 
 		  and ni.spell.valid(tank, 57934, false, true, true) then
 			ni.spell.cast(57934, tank)
 			return true
@@ -224,7 +289,7 @@ local abilities = {
 		 and ni.spell.available(13877)
 		 and ni.spell.isinstant(13877)
 		 and not ni.spell.available(51690)
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.spell.cast(13877)
 			return true
@@ -237,7 +302,7 @@ local abilities = {
 		 and ni.spell.isinstant(13750)
 		 and ni.spell.available(13750)
 		 and not ni.spell.available(51690)
-		 and ni.data.darhanger.CDsaverTTD()
+		 and ni.data.darhanger.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.spell.cast(13750)
 			return true
@@ -269,11 +334,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Sinister Strike"] = function()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if GetComboPoints("player") < 5
 		 and ni.spell.isinstant(48638)
 		 and ni.spell.available(48638)
-		 and ( #enemies == 1 or #enemies < 3 )
 		 and ni.spell.valid("target", 48638, true, true) then
 			ni.spell.cast(48638, "target")
 			return true
@@ -283,8 +346,7 @@ local abilities = {
 	["Rupture"] = function()
 		local SnD = ni.data.darhanger.rogue.SnD()
 		local Rup = ni.data.darhanger.rogue.Rup()
-		if ni.player.hasglyph(56801)
-		 and GetComboPoints("player") == 5
+		if  GetComboPoints("player") == 5
 		 and ( Rup == nil or ( Rup - GetTime() <= 3 ) )
 		 and ( SnD and ( SnD - GetTime() > 5 ) )
 		 and ni.spell.isinstant(48672)
@@ -298,8 +360,7 @@ local abilities = {
 	["Eviscerate Dump"] = function()
 		local SnD = ni.data.darhanger.rogue.SnD()
 		local Rup = ni.data.darhanger.rogue.Rup()
-		if ni.player.hasglyph(56801)
-		 and GetComboPoints("player") == 5
+		if  GetComboPoints("player") == 5
 		 and Rup
 		 and ( SnD and ( SnD - GetTime() > 5 ) )
 		 and ni.spell.isinstant(48668)
@@ -312,8 +373,7 @@ local abilities = {
 -----------------------------------
 	["Eviscerate"] = function()
 		local SnD = ni.data.darhanger.rogue.SnD()
-		if ni.player.hasglyph(56802)
-		 and GetComboPoints("player") == 5
+		if  GetComboPoints("player") == 5
 		 and ( SnD and ( SnD - GetTime() > 5 ) )
 		 and ni.spell.isinstant(48668)
 		 and ni.spell.available(48668)
@@ -326,10 +386,19 @@ local abilities = {
 	["Window"] = function()
 		if not popup_shown then
 		 ni.debug.popup("Combat Rogue by DarhangeR for 3.3.5a", 
-		 "Welcome to Combat Rogue Profile! Support and more in Discord > https://discord.gg/TEQEJYS.\n\n--Profile Function--\n-Focus ally target for use TofT on it or put tank name to Tank Overrides and press Enable Main.\n-Rotation developed for Rupture or Eviscerate builds.\n-For chose build use Glyph of Rupture or Glyph of Eviscerate.\n-For use Fan of Knives configure AoE Toggle key.")
+		 "Welcome to Combat Rogue Profile! Support and more in Discord > https://discord.gg/TEQEJYS.\n\n--Profile Function--\n-Focus ally target for use TofT on it or put tank name to Tank Overrides and press Enable Main.\n-Rotation developed for Rupture or Eviscerate builds.\n-For chose build select it in GUI menu.\n-For use Fan of Knives configure AoE Toggle key.")
 		popup_shown = true;
 		end 
 	end,
 }
 
-ni.bootstrap.rotation("Combat_DarhangeR", queue, abilities, data)
+local function queue()
+	local build = GetSetting("builds")
+	 if build == 1 then
+	  return EviscerateBuild;
+	elseif build == 2 then
+	  return RaptureBuild;
+	end
+end
+
+ni.bootstrap.rotation("Combat_DarhangeR", queue, abilities, data, { [1] = "Combat Rogue by DarhangeR", [2] = items });	
