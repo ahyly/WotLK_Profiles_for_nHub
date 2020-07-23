@@ -25,6 +25,10 @@ local items = {
 	{ type = "entry", text = "Survival Instincts", enabled = true, value = 30, key = "survivial" },
 	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
 	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Growl (Auto Agro)", enabled = false, key = "grow" },
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -42,8 +46,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;
 
 local queue = {
 	"Window",
@@ -89,12 +98,12 @@ local abilities = {
 -----------------------------------
 	["Gift of the Wild"] = function()
 		if ni.player.buff(48470)
-		 or not IsUsableSpell(GetSpellInfo(48470)) then 
+		 or not IsUsableSpell(GetSpellInfo(48470)) 
+		 and not ni.data.darhanger.DruidStuff("player") then 
 		 return false
 	end
 		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470) 
-		 and not ni.data.darhanger.DruidStuff("player") then
+		 and ni.spell.isinstant(48470) then
 			ni.spell.cast(48470)	
 			return true
 		end
@@ -254,19 +263,22 @@ local abilities = {
 	end,
 -----------------------------------
 	["Growl (Ally)"] = function()
-		table.wipe(enemies);
-		local enemies = ni.unit.enemiesinrange("target", 30)
-		for i = 1, #enemies do
-		local threatUnit = enemies[i].guid
-   		 if ni.unit.threat("player", threatUnit) ~= nil 
-   		  and ni.unit.threat("player", threatUnit) <= 2
-   		  and UnitAffectingCombat(threatUnit) 
-		  and ni.spell.available(6795)
-		  and ni.spell.isinstant(6795)
-		  and ni.data.darhanger.youInInstance()
-   		  and ni.spell.valid(threatUnit, 6795, false, true, true) then
-			ni.spell.cast(6795, threatUnit)
-			return true
+		local _, enabled = GetSetting("grow")
+   		if ni.spell.available(6795)
+		 and ni.spell.isinstant(6795)
+		 and (ni.data.darhanger.youInInstance()
+		 or enabled) then
+		 table.wipe(enemies);
+		 local enemies = ni.unit.enemiesinrange("player", 30)
+		  for i = 1, #enemies do
+		  local threatUnit = enemies[i].guid
+   		   if ni.unit.threat("player", threatUnit) ~= nil 
+   		    and ni.unit.threat("player", threatUnit) <= 2
+   		    and UnitAffectingCombat(threatUnit) 
+   		    and ni.spell.valid(threatUnit, 6795, false, true, true) then
+				ni.spell.cast(6795, threatUnit)
+				return true
+				end
 			end
 		end
 	end,

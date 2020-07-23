@@ -29,6 +29,11 @@ local items = {
 	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
 	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
 	{ type = "separator" },
+	{ type = "title", text = "Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Dark Command (Auto Agro)", enabled = false, key = "dark" },
+	{ type = "entry", text = "Death Grip (Auto Agro)", enabled = false, key = "grip" },		
+	{ type = "separator" },
 	{ type = "title", text = "Presence's" },
 	{ type = "dropdown", menu = {
 		{ selected = false, value = 48266, text = "Blood Presence" },
@@ -52,8 +57,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end
+end;
 
 local queue = {
 	"Window",
@@ -437,39 +447,45 @@ local abilities = {
 	end,
 -----------------------------------
 	["Dark Command (Ally)"] = function()
-        table.wipe(enemies);
-		local enemies = ni.unit.enemiesinrange("player", 30)
-		for i = 1, #enemies do
-		local threatUnit = enemies[i].guid
-   		 if ni.unit.threat("player", threatUnit) ~= nil 
-   		  and ni.unit.threat("player", threatUnit) <= 2
-   		  and UnitAffectingCombat(threatUnit) 
-   		  and not ni.spell.available(49576)
-  		  and ni.spell.available(56222)
-		  and ni.spell.isinstant(56222)
-		  and ni.data.darhanger.youInInstance()
-		  and not ni.unit.debuff(threatUnit, 49560)
-   		  and ni.spell.valid(threatUnit, 56222, false, true, true) then
-			ni.spell.cast(56222, threatUnit)
-			return true
+		local _, enabled = GetSetting("dark")
+   		if not ni.spell.available(49576)
+  		 and ni.spell.available(56222)
+		 and ni.spell.isinstant(56222)
+		 and (ni.data.darhanger.youInInstance()
+		 or enabled) then
+		 table.wipe(enemies);
+		 local enemies = ni.unit.enemiesinrange("player", 30)
+		  for i = 1, #enemies do
+		  local threatUnit = enemies[i].guid
+   		   if ni.unit.threat("player", threatUnit) ~= nil 
+   		    and ni.unit.threat("player", threatUnit) <= 2
+   		    and UnitAffectingCombat(threatUnit) 
+   		    and not ni.unit.debuff(threatUnit, 49560)
+   		    and ni.spell.valid(threatUnit, 56222, false, true, true) then
+				ni.spell.cast(56222, threatUnit)
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Death Grip (Ally)"] = function()
-        table.wipe(enemies);
-		local enemies = ni.unit.enemiesinrange("player", 30)
-		for i = 1, #enemies do
-		local threatUnit = enemies[i].guid
-   		 if ni.unit.threat("player", threatUnit) ~= nil 
-   		  and ni.unit.threat("player", threatUnit) <= 2
-   		  and UnitAffectingCombat(threatUnit) 
-   		  and ni.spell.available(49576)
-		  and ni.spell.isinstant(49576)
-		  and ni.data.darhanger.youInInstance()
-   		  and ni.spell.valid(threatUnit, 49576, true, true) then
-			ni.spell.cast(49576, threatUnit)
-			return true
+		local _, enabled = GetSetting("grip")
+		 if ni.spell.available(49576)
+		 and ni.spell.isinstant(49576)
+		 and (ni.data.darhanger.youInInstance()
+		 or enabled) then      
+		 table.wipe(enemies);
+		 local enemies = ni.unit.enemiesinrange("player", 30)
+		  for i = 1, #enemies do
+		  local threatUnit = enemies[i].guid
+   		   if ni.unit.threat("player", threatUnit) ~= nil 
+   		    and ni.unit.threat("player", threatUnit) <= 2
+   		    and UnitAffectingCombat(threatUnit) 
+   		    and ni.spell.valid(threatUnit, 49576, true, true) then
+				ni.spell.cast(49576, threatUnit)
+				return true
+				end
 			end
 		end
 	end,

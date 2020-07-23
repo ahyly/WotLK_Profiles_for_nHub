@@ -31,6 +31,7 @@ local items = {
 	{ type = "separator" },
 	{ type = "title", text = "Rotation Settings" },
 	{ type = "separator" },
+	{ type = "entry", text = "Taunt (Auto Agro)", enabled = false, key = "tau" },
 	{ type = "entry", text = "Rend (Boss only)", enabled = true, key = "rend" },
 	{ type = "entry", text = "Thunder Clap (AoE)", enabled = true, key = "thunder" },
 	{ type = "entry", text = "Heroic Strike/Cleave minimal rage", value = 35, key = "heroiccleave" },
@@ -51,8 +52,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end
+end;
 
 local queue = {
 	"Window",
@@ -301,19 +307,22 @@ local abilities = {
 	end,
 -----------------------------------
 	["Taunt (Ally)"] = function()
-        table.wipe(enemies);	
-		local enemies = ni.unit.enemiesinrange("target", 30)
-		for i = 1, #enemies do
-		local threatUnit = enemies[i].guid
-   		 if ni.unit.threat("player", threatUnit) ~= nil 
-   		  and ni.unit.threat("player", threatUnit) <= 2
-   		  and UnitAffectingCombat(threatUnit)
-		  and ni.spell.isinstant(355) 
-   		  and ni.spell.available(355)
-		  and ni.data.darhanger.youInInstance()
-   		  and ni.spell.valid(threatUnit, 355, false, true, true) then
-			ni.spell.cast(355, threatUnit)
-			return true
+		local _, enabled = GetSetting("grow")
+   		if ni.spell.available(355)
+		 and ni.spell.isinstant(355)
+		 and (ni.data.darhanger.youInInstance()
+		 or enabled) then
+		 table.wipe(enemies);
+		 local enemies = ni.unit.enemiesinrange("player", 30)
+		  for i = 1, #enemies do
+		  local threatUnit = enemies[i].guid
+   		   if ni.unit.threat("player", threatUnit) ~= nil 
+   		    and ni.unit.threat("player", threatUnit) <= 2
+   		    and UnitAffectingCombat(threatUnit) 
+   		    and ni.spell.valid(threatUnit, 355, false, true, true) then
+				ni.spell.cast(355, threatUnit)
+				return true
+				end
 			end
 		end
 	end,
@@ -328,6 +337,7 @@ local abilities = {
 		 and ni.spell.cd(355) ~= 0
 		 and ni.spell.isinstant(694) 
 		 and ni.spell.available(694)
+		 and ni.data.darhanger.youInInstance()
 		 and ni.spell.valid("target", 694, true, true) then
 			ni.spell.cast(694)
 			return true

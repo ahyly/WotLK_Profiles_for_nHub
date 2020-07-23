@@ -625,6 +625,7 @@ local MopList = {
 	"Amethyst Spiderling",
 	"Anodized Robo Cub",
 	"Arctic Fox Kit",
+	"Arctic Hare",
 	"Ash Lizard",
 	"Ash Viper",
 	"Baby Ape",
@@ -975,6 +976,11 @@ local function GetSetting(name)
 					return v2.value
 				end
 			end
+		end
+		if v.type == "input"
+		 and v.key ~= nil
+		 and v.key == name then
+			return v.value
 		end
 	end
 end;
@@ -1547,6 +1553,23 @@ local function PetLevelFunction()
 		end
 	end
 end
+local function AverageHealth()
+	local count = 0;
+	local average = 0;
+	for i = 1, 3 do
+		local id = C_PetJournal.GetPetLoadOutInfo(1);
+		if id ~= nil then
+			local health, maxhealth = C_PetJournal.GetPetStats(id);
+			average = average + (health / maxhealth * 100);
+			count = count + 1;
+		end
+	end
+	if count > 0 then
+		return average / count;
+	else
+		return 100;
+	end
+end
 local abilities = {
 	["Settings"] = function()
 		settings.inBattle = C_PetBattles.IsInBattle();
@@ -1556,7 +1579,7 @@ local abilities = {
 		settings.ReviveBattlePetsValue, settings.ReviveBattlePetsCheck = GetSetting("RevivePets");
 		settings.PetHealValue, settings.PetHealCheck = GetSetting("PetHeal");
 		settings.CaptureValue = GetSetting("Capture");
-		settings.CaptureCheck = select(2, GetSetting("CapturePet"));
+		settings.CaptureCheck = select(2, GetSetting("CapturePets"));
 		settings.NumberOfPetsValue = GetSetting("NumPets");
 		settings.AutoClickerCheck = select(2, GetSetting("AutoClicker"));
 		settings.FollowerDistanceValue, settings.FollowerDistanceCheck = GetSetting("FollowDistance");
@@ -1613,28 +1636,29 @@ local abilities = {
 			enemyPet.ID = C_PetBattles.GetDisplayID(1, enemyPet.slot)
 			enemyPet.percent = floor(enemyPet.HP)
 			enemyPet.type = C_PetBattles.GetPetType(2, enemyPet.slot);
-
-			local health1 = C_PetBattles.GetHealth(1, 1) or 0;
-			local maxhealth1 = C_PetBattles.GetMaxHealth(1, 1) or 0;
-			local health2 = C_PetBattles.GetHealth(1, 2) or 0;
-			local maxhealth2 = C_PetBattles.GetMaxHealth(1, 2) or 0;
-			local health3 = C_PetBattles.GetHealth(1, 3) or 0;
-			local maxhealth3 = C_PetBattles.GetMaxHealth(1, 3) or 0;
+			
+			settings.WeatherID = C_PetBattles.GetAuraInfo(0, 0, 1)
+			
+			local health1 = C_PetBattles.GetHealth(1, 1);
+			local maxhealth1 = C_PetBattles.GetMaxHealth(1, 1);
+			local health2 = C_PetBattles.GetHealth(1, 2);
+			local maxhealth2 = C_PetBattles.GetMaxHealth(1, 2);
+			local health3 = C_PetBattles.GetHealth(1, 3);
+			local maxhealth3 = C_PetBattles.GetMaxHealth(1, 3);
 			settings.Pet1HP = floor((100 * health1 / maxhealth1))
 			settings.Pet2HP = floor((100 * health2 / maxhealth2))
 			settings.Pet3HP = floor((100 * health3 / maxhealth3))
 			PetHPTable[1] = settings.Pet1HP;
 			PetHPTable[2] = settings.Pet2HP;
 			PetHPTable[3] = settings.Pet3HP;
-				
-			settings.averageHP = floor(((settings.Pet1HP + settings.Pet2HP + settings.Pet3HP) / 3))
 			
-			settings.WeatherID = C_PetBattles.GetAuraInfo(0, 0, 1)
+			settings.averageHP = floor(((settings.Pet1HP + settings.Pet2HP + settings.Pet3HP) / 3))
 			
 			-- Speed Check
 			activePet.speed = C_PetBattles.GetSpeed(1, activePet.slot)
 			enemyPet.speed = C_PetBattles.GetSpeed(2, enemyPet.slot)
-			
+		else
+			settings.averageHP = AverageHealth();
 		end
 		if not settings.inBattle 
 		  and settings.ReviveBattlePetsCheck
@@ -2052,6 +2076,24 @@ local abilities = {
 	end,
 	["Follower"] = function()
 		---- PokeRotation Nav system ---
+		ni.functions.resetlasthardwareaction()
+		if UnitAffectingCombat("player")
+		 and UnitExists("target")
+		 and UnitCanAttack("player", "target")
+		 and ni.player.threat("target") > -1 then
+			if not ni.player.isfacing("target", 45) then
+				ni.player.lookat("target");
+				return true;
+			end
+		end
+		if settings.averageHP < 33 then
+			return true;
+		end
+		if not settings.inBattle 
+		  and settings.ReviveBattlePetsCheck
+		  and settings.averageHP < settings.ReviveBattlePetsValue then
+			return true;
+		end
 		if not settings.inBattle
 		 and IsSwapping <= GetTime() - 1
 		 and settings.AutoClickerCheck

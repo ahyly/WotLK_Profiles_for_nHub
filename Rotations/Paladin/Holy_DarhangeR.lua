@@ -4,7 +4,7 @@ local items = {
 	settingsfile = "DarhangeR_HolyPaladin.xml",
 	{ type = "title", text = "Holy Paladin by DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "tank Settings" },
 	{ type = "separator" },	
 	{ type = "entry", text = "Divine Plea", enabled = true, value = 60, key = "plea" },
 	{ type = "entry", text = "Divine Illumination", enabled = true, value = 35, key = "illumination" },	
@@ -52,8 +52,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;	
 
 local queue = {
 	"Window",
@@ -405,19 +410,19 @@ local abilities = {
 	end,
 -----------------------------------
 	["Tank Heal"] = function()
-		local main = ni.tanks()
+		local tank = ni.tanks()
 		-- Main Tank Heal
-		if ni.unit.exists(main) then
-		 local BofLtank, _, _, _, _, _, BofLtank_time = ni.unit.buff(main, 53563, "player")
-		 local SCtank, _, _, _, _, _, SCtank_time = ni.unit.buff(main, 53601, "player")
-		 local SelfSCtank = ni.unit.buff(main, 53601)
-		 local forbtank = ni.unit.debuff(main, 25771)
+		if ni.unit.exists(tank) then
+		 local BofLtank, _, _, _, _, _, BofLtank_time = ni.unit.buff(tank, 53563, "player")
+		 local SCtank, _, _, _, _, _, SCtank_time = ni.unit.buff(tank, 53601, "player")
+		 local SelfSCtank = ni.unit.buff(tank, 53601)
+		 local forbtank = ni.unit.debuff(tank, 25771)
 		if (not BofLtank
 		 or (BofLtank and BofLtank_time - GetTime() < 2))
 		 and ni.spell.isinstant(53563)
 		 and ni.spell.available(53563)
-		 and ni.spell.valid(main, 53563, false, true, true) then
-			ni.spell.cast(53563, main)
+		 and ni.spell.valid(tank, 53563, false, true, true) then
+			ni.spell.cast(53563, tank)
 			return true
 		end
 		 if not SelfSCtank
@@ -425,26 +430,26 @@ local abilities = {
 		 or (SCtank and SCtank_time - GetTime() < 2))
 		 and ni.spell.isinstant(53601)		 
 		 and ni.spell.available(53601)
-		 and ni.spell.valid(main, 53601, false, true, true) then
-			ni.spell.cast(53601, main)
+		 and ni.spell.valid(tank, 53601, false, true, true) then
+			ni.spell.cast(53601, tank)
 			return true
 		end
-		 if main ~= nil
-		 and ni.unit.hp(main) < 12
+		 if tank ~= nil
+		 and ni.unit.hp(tank) < 12
 		 and not forbtank
 		 and ni.spell.isinstant(48788)
 		 and ni.spell.available(48788)
-		 and ni.spell.valid(main, 48788, false, true, true) then
-			ni.spell.cast(48788, main)
+		 and ni.spell.valid(tank, 48788, false, true, true) then
+			ni.spell.cast(48788, tank)
 			return true
 		end
-		 if main ~= nil
-		 and ni.unit.hp(main) < 25
+		 if tank ~= nil
+		 and ni.unit.hp(tank) < 25
 		 and ni.spell.isinstant(20216)
 		 and ni.spell.available(20216)
 		 and ni.spell.available(48825)
-		 and ni.spell.valid(main, 48825, false, true, true) then
-			ni.spell.castspells("20216|48825", main)
+		 and ni.spell.valid(tank, 48825, false, true, true) then
+			ni.spell.castspells("20216|48825", tank)
 			return true
 			end
 		end
@@ -550,10 +555,10 @@ local abilities = {
          and ni.spell.available(1044) then
 		  for i = 1, #ni.members do
 			local ally = ni.members[i].unit
-			 if ni.data.darhanger.FreedomUse(ally)
-			  and ni.unit.ismoving(ally)
-			  and ni.spell.valid(ni.members[i].unit, 1044, false, true, true) then
-					ni.spell.cast(1044, ni.members[i].unit)
+			 if ni.unit.ismoving(ally)
+			  and ni.data.darhanger.FreedomUse(ally)
+			  and ni.spell.valid(ally, 1044, false, true, true) then
+					ni.spell.cast(1044, ally)
 					return true
                 end
             end

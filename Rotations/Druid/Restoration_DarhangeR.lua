@@ -49,8 +49,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;
 
 local queue = {
 	"Window",
@@ -89,12 +94,12 @@ local abilities = {
 -----------------------------------
 	["Gift of the Wild"] = function()
 		if ni.player.buff(48470)
-		 or not IsUsableSpell(GetSpellInfo(48470)) then 
+		 or not IsUsableSpell(GetSpellInfo(48470)) 
+		 and not ni.data.darhanger.DruidStuff("player") then 
 		 return false
 	end
 		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470) 
-		 and not ni.data.darhanger.DruidStuff("player")	then
+		 and ni.spell.isinstant(48470) then
 			ni.spell.cast(48470)	
 			return true
 		end
@@ -272,19 +277,19 @@ local abilities = {
 		end
 	end,
 -----------------------------------
-	["Tank Heal"] = function()
-		local mainTank, offTank = ni.tanks()
+		["Tank Heal"] = function()
+		local tank, offTank = ni.tanks()
 		-- Main Tank Heal
 		if ni.unit.exists(tank) then
-		 local lbtank, _, _, lbtank_count, _, _, lbtank_time = ni.unit.buff(mainTank, 48451, "player")
-		 local rgtank, _, _, _, _, _, rgtank_time = ni.unit.buff(mainTank, 48443, "player")
-		 local rjtank, _, _, _, _, _, rjtank_time = ni.unit.buff(mainTank, 48441, "player")
+		 local lbtank, _, _, lbtank_count, _, _, lbtank_time = ni.unit.buff(tank, 48451, "player")
+		 local rgtank, _, _, _, _, _, rgtank_time = ni.unit.buff(tank, 48443, "player")
+		 local rjtank, _, _, _, _, _, rjtank_time = ni.unit.buff(tank, 48441, "player")
 		-- Buff Thorns on MT -- 
 		if ni.spell.available(53307)
 		 and ni.spell.isinstant(53307)
-		 and not ni.unit.buff(mainTank, 53307)
-		 and ni.spell.valid(mainTank, 53307, false, true, true) then
-			ni.spell.cast(53307, mainTank)
+		 and not ni.unit.buff(tank, 53307)
+		 and ni.spell.valid(tank, 53307, false, true, true) then
+			ni.spell.cast(53307, tank)
 			return true
 		end
 		-- Heal MT with Lifebloom --
@@ -292,20 +297,20 @@ local abilities = {
 		 and ni.spell.isinstant(48451)
 		 and (not lbtank
 		 or (lbtank and lbtank_count < 3))
-		 and ni.spell.valid(mainTank, 48451, false, true, true) then
-			ni.spell.cast(48451, mainTank)
+		 and ni.spell.valid(tank, 48451, false, true, true) then
+			ni.spell.cast(48451, tank)
 			return true
 		end
 		-- Heal MT with Regrowth --
 		if ni.spell.available(48443)
-		 and ni.unit.hp(mainTank) < 55
+		 and ni.unit.hp(tank) < 55
 		 and (not rgtank
 		 or (rgtank and rgtank_time - GetTime() < 2))
 		 and GetTime() - ni.data.darhanger.druid.lastRegrowth > 2
 		 and not ni.player.ismoving() 
-		 and ni.spell.valid(mainTank, 48443, false, true, true) then
+		 and ni.spell.valid(tank, 48443, false, true, true) then
 			ni.data.darhanger.druid.lastRegrowth = GetTime()
-			ni.spell.cast(48443, mainTank)
+			ni.spell.cast(48443, tank)
 			return true
 		end
 		-- Heal MT with Rejuvenation --
@@ -313,8 +318,8 @@ local abilities = {
 		 and ni.spell.isinstant(48441)
 		 and (not rjtank
 		 or (rjtank and rjtank_time - GetTime() < 2))
-		 and ni.spell.valid(mainTank, 48441, false, true, true) then
-			ni.spell.cast(48441, mainTank)
+		 and ni.spell.valid(tank, 48441, false, true, true) then
+			ni.spell.cast(48441, tank)
 			return true
 			end
 		end

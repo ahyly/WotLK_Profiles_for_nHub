@@ -43,8 +43,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;	
 
 local queue = {
 	"Window",	
@@ -94,12 +99,12 @@ local abilities = {
 -----------------------------------
 	["Gift of the Wild"] = function()
 		if ni.player.buff(48470)
-		 or not IsUsableSpell(GetSpellInfo(48470)) then 
+		 or not IsUsableSpell(GetSpellInfo(48470)) 
+		 and not ni.data.darhanger.DruidStuff("player") then 
 		 return false
 	end
 		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470)
-		 and not ni.data.darhanger.DruidStuff("player") then
+		 and ni.spell.isinstant(48470) then
 			ni.spell.cast(48470)	
 			return true
 		end

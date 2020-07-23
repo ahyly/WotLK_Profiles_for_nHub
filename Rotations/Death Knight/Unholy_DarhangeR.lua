@@ -33,7 +33,6 @@ local items = {
 		{ selected = false, value = 48265, text = "Unholy Presence" },
 	}, key = "Presence" },
 };
-
 local function GetSetting(name)
     for k, v in ipairs(items) do
         if v.type == "entry"
@@ -50,8 +49,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end
+end;
 
 local queue = {
 	"Window",

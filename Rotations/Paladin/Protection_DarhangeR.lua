@@ -34,6 +34,8 @@ local items = {
 	{ type = "separator" },
 	{ type = "title", text = "Rotation Settings" },
 	{ type = "separator" },
+	{ type = "entry", text = "Hand of Reckoning (Auto Agro)", enabled = false, key = "hand" },
+	{ type = "entry", text = "Righteous Defence (Auto Agro)", enabled = true, key = "def" },	
 	{ type = "entry", text = "Consecration", enabled = true, key = "concentrat" },
 	{ type = "entry", text = "Mana threshold for use", value = 30, key = "concentratmana" },
 	{ type = "separator" },
@@ -58,8 +60,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;
 
 local queue = {
 	"Window",
@@ -321,37 +328,43 @@ local abilities = {
 	end,
 -----------------------------------
 	["Hand of Reckoning (Ally)"] = function()
-		table.wipe(enemies);
-		local enemies = ni.unit.enemiesinrange("target", 30)
-		for i = 1, #enemies do
-		local threatUnit = enemies[i].guid
-   		 if ni.unit.threat("player", threatUnit) ~= nil 
-   		  and ni.unit.threat("player", threatUnit) <= 2
-   		  and UnitAffectingCombat(threatUnit) 
-   		  and not ni.spell.available(49576)
-  		  and ni.spell.available(62124)
-		  and ni.spell.isinstant(62124)
-		  and ni.data.darhanger.youInInstance()
-   		  and ni.spell.valid(threatUnit, 62124, false, true, true) then
-			ni.spell.cast(62124, threatUnit)
-			return true
+		local _, enabled = GetSetting("hand")
+   		if ni.spell.available(62124)
+		 and ni.spell.isinstant(62124)
+		 and (ni.data.darhanger.youInInstance()
+		 or enabled) then
+		 table.wipe(enemies);
+		 local enemies = ni.unit.enemiesinrange("player", 30)
+		  for i = 1, #enemies do
+		  local threatUnit = enemies[i].guid
+   		   if ni.unit.threat("player", threatUnit) ~= nil 
+   		    and ni.unit.threat("player", threatUnit) <= 2
+   		    and UnitAffectingCombat(threatUnit) 
+   		    and ni.spell.valid(threatUnit, 62124, false, true, true) then
+				ni.spell.cast(62124, threatUnit)
+				return true
+				end
 			end
 		end
 	end,
 -----------------------------------
 	["Righteous Defence"] = function()
-		for i = 1, #ni.members do
-		 if ni.members[i].range
-		 and not UnitIsDeadOrGhost(ni.members[i].unit) then
-		 local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
-		  if tarCount ~= nil and tarCount >= 1
-		   and ni.spell.available(31789)
-		   and ni.spell.isinstant(31789)
-		   and not ni.members[i].istank
-		   and ni.unit.threat(ni.members[i].guid) >= 2
-		   and ni.spell.valid(ni.members[i].unit, 31789, false, true, true) then
-				ni.spell.cast(31789, ni.members[i].unit)
-				return true
+		local _, enabled = GetSetting("def")		
+		if (ni.data.darhanger.youInInstance()
+		 or enabled)
+		 and ni.spell.available(31789)
+		 and ni.spell.isinstant(31789) then
+		 for i = 1, #ni.members do
+		  if not UnitIsDeadOrGhost(ni.members[i].unit) then
+		   local tarCount = #ni.unit.unitstargeting(ni.members[i].guid)
+		   if tarCount ~= nil 
+		    and tarCount >= 1
+		    and not ni.members[i].istank
+		    and ni.unit.threat(ni.members[i].guid) >= 2
+		    and ni.spell.valid(ni.members[i].unit, 31789, false, true, true) then
+					ni.spell.cast(31789, ni.members[i].unit)
+					return true
+					end
 				end
 			end
 		end
@@ -458,8 +471,8 @@ local abilities = {
 	["Hand of Freedom (Self)"] = function()
 		local _, enabled = GetSetting("freedom")
 		if enabled
-		 and ni.data.darhanger.FreedomUse("player")
 		 and ni.player.ismoving()
+		 and ni.data.darhanger.FreedomUse("player")
 		 and ni.spell.isinstant(1044)
 		 and ni.spell.available(1044) then
 			ni.spell.cast(1044, "player")

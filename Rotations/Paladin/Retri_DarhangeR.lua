@@ -61,8 +61,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;	
 
 local queue = {
 	"Window",
@@ -496,8 +501,8 @@ local abilities = {
 	["Hand of Freedom (Self)"] = function()
 		local _, enabled = GetSetting("freedom")
 		if enabled
-		 and ni.data.darhanger.FreedomUse("player")
 		 and ni.player.ismoving()
+		 and ni.data.darhanger.FreedomUse("player")
 		 and ni.spell.isinstant(1044)
 		 and ni.spell.available(1044) then
 			ni.spell.cast(1044, "player")
@@ -506,16 +511,16 @@ local abilities = {
 	end,
 -----------------------------------
     ["Hand of Freedom (Member)"] = function()
-        local _, enabled = GetSetting("freedommemb")
+        local _, enabled = GetSetting("freedom")
         if enabled
 		 and ni.spell.isinstant(1044)
          and ni.spell.available(1044) then
 		  for i = 1, #ni.members do
 			local ally = ni.members[i].unit
-			 if ni.data.darhanger.FreedomUse(ally)
-			  and ni.unit.ismoving(ally)
-			  and ni.spell.valid(ni.members[i].unit, 1044, false, true, true) then
-					ni.spell.cast(1044, ni.members[i].unit)
+			 if ni.unit.ismoving(ally)
+			  and ni.data.darhanger.FreedomUse(ally)
+			  and ni.spell.valid(ally, 1044, false, true, true) then
+					ni.spell.cast(1044, ally)
 					return true
                 end
             end

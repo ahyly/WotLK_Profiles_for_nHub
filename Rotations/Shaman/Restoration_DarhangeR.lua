@@ -4,7 +4,7 @@ local items = {
 	settingsfile = "DarhangeR_Shaman_Resto.xml",
 	{ type = "title", text = "Restoration Shaman by DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "tank Settings" },
 	{ type = "separator" },
 	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },
 	{ type = "separator" },
@@ -48,8 +48,13 @@ local function GetSetting(name)
                 end
             end
         end
+        if v.type == "input"
+         and v.key ~= nil
+         and v.key == name then
+            return v.value
+        end
     end
-end	
+end;
 
 local queue = {
 	"Window",
@@ -225,28 +230,28 @@ local abilities = {
 	end,
 -----------------------------------
 	["Tank Heal"] = function()
-		local main = ni.tanks()
+		local tank = ni.tanks()
 		-- Main Tank Heal
-		if ni.unit.exists(main) then
-		 local earthshield, _, _, _, _, _, earthshield_time = ni.unit.buff(main, 49284, "player")
-		 local Otearthshield = ni.unit.buff(main, 49284)
+		if ni.unit.exists(tank) then
+		 local earthshield, _, _, _, _, _, earthshield_time = ni.unit.buff(tank, 49284, "player")
+		 local Otearthshield = ni.unit.buff(tank, 49284)
 		 -- Put Earth Shield on MT
 		 if not Otearthshield
 		 and not earthshield
 		 and ni.spell.isinstant(49284)		 
 		 and ni.spell.available(49284)
-		 and ni.spell.valid(main, 49284, false, true, true) then
-			ni.spell.cast(49284, main)
+		 and ni.spell.valid(tank, 49284, false, true, true) then
+			ni.spell.cast(49284, tank)
 			return true
 		end
-		if main ~= nil
-		 and ni.unit.hp(main) < 30
+		if tank ~= nil
+		 and ni.unit.hp(tank) < 30
 		 and ni.spell.isinstant(16188)
 		 and ni.spell.available(16188)
 		 and ni.spell.available(49273)
-		 and ni.spell.valid(main, 49273, false, true, true) then
+		 and ni.spell.valid(tank, 49273, false, true, true) then
 			ni.spell.cast(16188)
-			ni.spell.cast(49273, main)			
+			ni.spell.cast(49273, tank)			
 			return true
 			end
 		end
