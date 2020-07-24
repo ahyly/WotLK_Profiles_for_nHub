@@ -419,8 +419,8 @@ local abilities = {
 		 and ni.player.power() > value
 		 and ni.spell.isinstant(48819)
 		 and ni.spell.available(48819)
-		 and ni.spell.valid("target", 35395) then
-			ni.spell.cast(48819, "target")
+		 and ni.spell.valid("target", 53595) then
+			ni.spell.cast(48819)
 			return true
 		end
 	end,
