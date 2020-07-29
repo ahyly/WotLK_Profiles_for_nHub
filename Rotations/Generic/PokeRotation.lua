@@ -1557,7 +1557,7 @@ local function AverageHealth()
 	local count = 0;
 	local average = 0;
 	for i = 1, 3 do
-		local id = C_PetJournal.GetPetLoadOutInfo(1);
+		local id = C_PetJournal.GetPetLoadOutInfo(i);
 		if id ~= nil then
 			local health, maxhealth = C_PetJournal.GetPetStats(id);
 			average = average + (health / maxhealth * 100);

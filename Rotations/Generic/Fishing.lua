@@ -1,39 +1,134 @@
-	-- Main settings and other Stuff / Главные настройки и другая шняга -- 
-local Fishing = GetSpellInfo(7620); -- Not tuch!! / Не трогать от слова совсем!!
-local FishBob = "Fishing Bobber"; -- Default enGB name "Fishing Bobber" - change according to localization // Дефолтное название в английском клиенте "Fishing Bobber" - измините его в зависимости от вашей локализации;
-local settings = {
-	UsedLure = 6532, -- Fill with lure ItemID ; Вставить ItemID приманки;
-	UsedFishingPool = 6256, -- Default Startet Fishing Pool ItemID is 6256; Дефолтный ItemID стартовой удочки 6256, меняйте на свою;
-	MainWeapon = nil, -- Default ItemID is nil, Fill it with your weapon id; Дефолтный ItemID пустой, вставьте айди своего оружия;
-	OffHand = nil, -- Default ItemID is nil, Fill it with your weapon id or nil if you haven't off hand; Дефолтный ItemID пустой, вставьте айди своего оружия или оставить как есть если нету офф хэнда;
+local queue = {
+	"action check",
+	"combat check",
+	"lure check",
+	"pause",
+	"fish"
 }
-local function SirusCheck()
-	if (GetRealmName() == "Frostmourne x1 - 3.3.5+"
-	 or GetRealmName() == "Scourge x2 - 3.3.5a+"
-	 or GetRealmName() == "Neltharion x3 - 3.3.5a+"
-	 or GetRealmName() == "Sirus x10 - 3.3.5a+") then
-		return true
+local enables = {
+	lure = false,
+	weapon_swap = false,
+	pole_check = false,
+}
+local values = {
+	lure = 6532,
+}
+local inputs = {
+	pole = "6256",
+	main = "",
+	off = "",
+	bobber = "Fishing Bobber",
+	pool = "School"
+}
+local menus = {
+	full_bags = "AFK",
+}
+local function GUICallback(key, item_type, value)
+	if item_type == "enabled" then
+		enables[key] = value;
+	elseif item_type == "value" then
+		values[key] = value;
+	elseif item_type == "input" then
+		inputs[key] = value;
+	elseif item_type == "menu" then
+		menus[key] = value;
 	end
-		return false
 end
-local function FullBag()
-    local fullbags = 0
-    for b = 0, 4 do
-        if GetContainerNumFreeSlots(b) == 0 then
-            fullbags = fullbags + 1
-        end
-    end
-    return fullbags == 5
+local items = {
+	settingsfile = "ni_fishing.xml",
+	callback = GUICallback,
+	{ type = "title", text = "Fish Bot" },
+	{ type = "separator" },
+	{ 
+		type = "entry",
+		text = "Auto Lure",
+		enabled = enables["lure"],
+		tooltip = "Enable/Disable to automatically use the lure id specified",
+		value = values["lure"],
+		width = 50,
+		key = "lure",
+	},
+	{ 
+		type = "entry", 
+		text = "Auto Swap Weapons for Combat",
+		enabled = enables["weapon_swap"],
+		tooltip = "Enable/Disable this for the profile to swap weapons to the id's you specifiy below",
+		key = "weapon_swap"
+	},
+	{ type = "title", text = "Fishing Pool/School Name" },
+	{
+		type = "input",
+		value = inputs["pool"],
+		width = 140,
+		height = 15,
+		key = "pool"
+	},
+	{ type = "title", text = "Fishing Bobber Name" },
+	{
+		type = "input",
+		value = inputs["bobber"],
+		width = 140,
+		height = 15,
+		key = "bobber"
+	},
+	{
+		type = "entry",
+		text = "Check if pole equipped",
+		tooltip = "This is for checking if you have the pole equipped before trying to cast the fishing spell",
+		enabled = enables["pole_check"],
+		key = "pole_check"
+	},
+	{ type = "title", text = "Fishing Pole ID" },
+	{
+		type = "input",
+		value = inputs["pole"],
+		widht = 100,
+		height = 15,
+		key = "pole"
+	},
+	{ type = "title", text = "Main Hand ID" },
+	{
+		type = "input",
+		value = inputs["main"],
+		widht = 100,
+		height = 15,
+		key = "main"
+	},
+	{ type = "title", text = "Off Hand ID" },
+	{
+		type = "input",
+		value = inputs["off"],
+		widht = 100,
+		height = 15,
+		key = "off"
+	},
+	{ type = "title", text = "What to do on full bags?" },
+	{
+		type = "dropdown",
+		menu = {
+			{ selected = (menus["full_bags"] == "AFK"), value = "AFK" },
+			{ selected = (menus["full_bags"] == "Hearthstone"), value = "Hearthstone" },
+			{ selected = (menus["full_bags"] == "Logout"), value = "Logout" },
+		},
+		key = "full_bags",
+	},
+}
+local function OnLoad()
+	ni.GUI.AddFrame("Fishing", items);
 end
-local popup_shown = false;
-local locale = GetLocale()
-local russian = false;
-if locale == "ruRU" then
-	russian = true
-else
-	russian = false
-end	
-	-- Not tuch!! / Не трогать от слова совсем!! -- 
+local function OnUnload()
+	ni.GUI.DestroyFrame("Fishing");
+end
+local function FullBags()
+	local fullbags = 0;
+	for i = 0, 4 do
+		if GetContainerNumFreeSlots(i) == 0 then
+			fullbags = fullbags + 1
+		end
+	end
+	return fullbags == 5
+end
+local Fishing = GetSpellInfo(7620);
 local offset;
 if ni.vars.build == 40300 then
 	offset = 0xD4;
@@ -43,129 +138,92 @@ else
 	offset = 0xBC;
 end
 local functionsent = 0;
-	---------------
-local queue = {
-	"Window",
-	"Combat",
-	"Revive",
-	"Lure",
-	"Pause",	
-	"Fishing"
-}
-local queue2 = {
-	"Window",
-	"Combat",
-	"Revive",
-	"Lure",
-	"Pause",
-	"Fishing (Sirus Only)"
-}
+local lure_applied = 0;
 local abilities = {
------------------------------------
-	["Window"] = function()
-		if not popup_shown 
-		 and russian == true then
-		 ni.debug.popup("Modified Fishing Profile by DarhangeR (Original by Scott)", 
-		"Добро пожаловать в профиль Рыбной ловли! Поддержка и общие вопросы в Discord > https://discord.gg/TEQEJYS.\n\n--Функции профиля--\n-Откройте файл Fishing.lua и добавьте нужные ItemID.")
-		popup_shown = true;
-		end
-		if not popup_shown
-		 and russian == false then
-		 ni.debug.popup("Modified Fishing Profile by DarhangeR (Original by Scott)", 
-		"Welcome to Fishing Profile! Support and more in Discord > https://discord.gg/TEQEJYS.\n\n--Profile Function--\n-Open Fishing.lua and add proper ItemID.")
-		popup_shown = true;
-		end	
-	end,
------------------------------------	
-	["Combat"] = function()
-		if UnitAffectingCombat("player") ~= nil
-		 and IsEquippedItem(settings.UsedFishingPool)
-		 and not UnitIsDeadOrGhost("player") then
-			ni.spell.stopcasting()
-			ni.spell.stopchanneling()
-			EquipItemByName(settings.MainWeapon)
-			EquipItemByName(settings.OffHand)
-		end
-		if UnitAffectingCombat("player") == nil
-		 and not IsEquippedItem(settings.UsedFishingPool)
-		 and not UnitIsDeadOrGhost("player") then
-			EquipItemByName(settings.UsedFishingPool)	
-			return true
-		end
-	end,
------------------------------------	
-	["Revive"] = function()	
-		if UnitIsDeadOrGhost("player") then
-			RepopMe()
-			return true
-		end
-	end,
------------------------------------	
-	["Pause"] = function()
-		if FullBag()
-		 or IsMounted()
-		 or UnitInVehicle("player")
-		 or UnitIsDeadOrGhost("player")
-		 or UnitCastingInfo("player") ~= nil
-		 or UnitAffectingCombat("player")
-		 or ni.player.ismoving() then 
-			return true
-		end
-	end,
------------------------------------
-	["Lure"] = function()
-		local fp = GetWeaponEnchantInfo()
-		 if ApplyLure 
-		  and GetTime() - ApplyLure > 4 then 
-		  ApplyLure = nil 
-         end
- 		if ApplyLure == nil then
-		 ApplyLure = GetTime()
-		if IsEquippedItem(settings.UsedFishingPool)
-		 and UnitAffectingCombat("player") == nil 
-		 and not fp
-		 and ni.player.hasitem(settings.UsedLure) then
-			ni.spell.stopchanneling()
-			ni.player.useitem(settings.UsedLure)
-			ni.player.useinventoryitem(16)
-			ni.player.runtext("/click StaticPopup1Button1")
-			return true
+	["action check"] = function()
+		if FullBags() then
+			local action = menus["full_bags"];
+			if action == "AFK" then
+				ni.frames.floatingtext:message("Bags are full, time to AFK!");
+				ni.vars.profiles.enabled = false;
+			elseif action == "Hearthstone" then
+				if not UnitAffectingCombat("player")
+				 and not UnitCastingInfo("player")
+				 and not UnitChannelInfo("player") then
+					ni.player.useitem(6948);
+					ni.frames.floatingtext:message("Bags are full, time to go home!");
+					ni.vars.profiles.enabled = false;
+				end
+			elseif action == "Logout" then
+				if not UnitAffectingCombat("player") then
+					ni.player.runtext("/logout");
+					ni.frames.floatingtext:message("Bags are full, time to logout!");
+					ni.vars.profiles.enabled = false;
+				end
 			end
 		end
 	end,
------------------------------------
-	["Fishing (Sirus Only)"] = function()
-		if ni.player.islooting() then
-			return
-		end
-		if UnitChannelInfo("player") then
-			if GetTime() - functionsent > 1 then
-				local playerguid = UnitGUID("player");
-				for k, v in pairs(ni.objects) do
-					if type(k) ~= "function" 
-					 and (type(k) == "string" 
-					 and type(v) == "table") then
-						if v.name == FishBob then
-								local ptr = ni.memory.objectpointer(v.guid);
-								if ptr ~= nil then
-									local result = ni.memory.read("byte", ptr, offset)
-									if result == 1 then
-										ni.player.interact(v.guid);
-										functionsent = GetTime();
-									return true;
-								end
-							end
+	["combat check"] = function()
+		if enables["weapon_swap"] and not UnitIsDeadOrGhost("player") then
+			local pole = tonumber(inputs["pole"]);
+			local mh = tonumber(inputs["main"]);
+			local oh = tonumber(inputs["off"]);
+			if pole and mh then
+				if UnitAffectingCombat("player") then
+					if IsEquippedItem(pole) then
+						EquipItemByName(mh);
+						if oh then
+							EquipItemByName(oh);
 						end
+						return true;
+					end
+				else
+					if not IsEquippedItem(pole) then
+						EquipItemByName(pole);
+						return true;
 					end
 				end
 			end
-		else
-			ni.spell.delaycast(Fishing, nil, 1.5);
-			ni.utils.resetlasthardwareaction();
 		end
 	end,
------------------------------------
-	["Fishing"] = function()
+	["lure check"] = function()
+		local pole = tonumber(inputs["pole"]);
+		if enables["lure"] and pole then
+			if GetTime() - lure_applied < 4 then
+				return false;
+			end
+			local lure_enchant = GetWeaponEnchantInfo();
+			if IsEquippedItem(pole)
+			 and not lure_enchant
+			 and not UnitAffectingCombat("player")
+			 and ni.player.hasitem(values["lure"]) then
+				lure_applied = GetTime();
+				ni.spell.stopcasting();
+				ni.spell.stopchanneling();
+				ni.player.useitem(values["lure"]);
+				ni.player.useinventoryitem(16);
+				ni.player.runtext("/click StaticPopup1Button1");
+				return true;
+			end
+		end
+	end,
+	["pause"] = function()
+		if IsMounted()
+		 or UnitInVehicle("player")
+		 or UnitIsDeadOrGhost("player")
+		 or UnitCastingInfo("player")
+		 or UnitAffectingCombat("player")
+		 or ni.player.ismoving() then
+			return true;
+		end
+	end,
+	["fish"] = function()
+		if enables["pole_check"] then
+			local pole = tonumber(inputs["pole"]);
+			if not IsEquippedItem(pole) then
+				return;
+			end
+		end
 		if ni.player.islooting() then
 			return
 		end
@@ -173,37 +231,37 @@ local abilities = {
 			if GetTime() - functionsent > 1 then
 				local playerguid = UnitGUID("player");
 				for k, v in pairs(ni.objects) do
-					if type(k) ~= "function" 
-					 and (type(k) == "string" 
-					 and type(v) == "table") then
-						if v.name == FishBob then
-							local creator = v:creator();  -- If not loot fish delete this string  / если не лутает рыбу удалить эту строку;
-							if tonumber(creator) == tonumber(playerguid) then -- and this string / и эту строку;
+					if type(k) ~= "function" and (type(k) == "string" and type(v) == "table") then
+						if v.name == inputs["bobber"] then
+							local creator = v:creator();
+							if creator == playerguid then
 								local ptr = ni.memory.objectpointer(v.guid);
-								if ptr ~= nil then
-									local result = ni.memory.read("byte", ptr, offset)
+								if ptr then
+									local result = ni.memory.read("byte", ptr, offset);
 									if result == 1 then
 										ni.player.interact(v.guid);
 										functionsent = GetTime();
 										return true;
-									end -- and this / и эту тоже;
+									end
 								end
-							end
+							end 
 						end
 					end
 				end
 			end
 		else
+			for k, v in pairs(ni.objects) do
+				if type(v) ~= "function" and v.name ~= nil and string.match(v.name, inputs["pool"]) then
+					local dist = ni.player.distance(k);
+					if dist ~= nil and dist < 20 then
+						ni.player.lookat(k);
+						break;
+					end
+				end
+			end
 			ni.spell.delaycast(Fishing, nil, 1.5);
 			ni.utils.resetlasthardwareaction();
 		end
 	end,
 }
-	-- Not tuch!! / Не трогать от слова совсем!! -- 
-local dynamicqueue = function()
-    if SirusCheck() then
-        return queue2
-    end
-		return queue
-end
-ni.bootstrap.rotation("Fishing", dynamicqueue, abilities)
+ni.bootstrap.profile("Fishing", queue, abilities, OnLoad, OnUnload);
