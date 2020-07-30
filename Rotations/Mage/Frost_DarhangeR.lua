@@ -89,10 +89,12 @@ local queue = {
 	"Frostfire Bolt (Non Cast)",
 	"Blizzard",
 	"Cone of Cold",
+	"Scorch (Improved Scorch check)",
 	"Remove Curse (Member)",
 	"Remove Curse (Self)",	
 	"Deep Freeze",
 	"Ice Lance",
+	"Frostfire Bolt",
 	"Frostbolt",	
 }
 local abilities = {
@@ -481,6 +483,22 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Scorch (Improved Scorch check)"] = function()
+		local winterChill, _, _, winterChill_stacks = ni.unit.debuff("target", 12579)
+		if select(5, GetTalentInfo(2,11)) == 3
+		 and (not winterChill or not winterChill_stacks == 5)
+		 and not ni.unit.debuff("target", 22959)
+		 and not ni.unit.debuff("target", 17800)
+		 and ni.unit.debuffremaining("target", 22959) < 2.5
+		 and ni.spell.available(42859)
+		 and ni.spell.valid("target", 42859, true, true)
+		 and GetTime() - ni.data.darhanger.mage.LastScorch > 3 then
+			ni.spell.cast(42859, "target")
+			ni.data.darhanger.mage.LastScorch = GetTime()
+			return true
+		end
+	end,
+-----------------------------------
 	["Deep Freeze"] = function()
 		local fnova = ni.data.darhanger.mage.fnova()
 		local fbite = ni.data.darhanger.mage.fbite()
@@ -510,8 +528,19 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Frostfire Bolt"] = function()
+		if select(5, GetTalentInfo(2,4)) == 5
+		 and ni.spell.available(47610)
+		 and not ni.player.ismoving()
+		 and ni.spell.valid("target", 47610, true, true) then
+			ni.spell.cast(47610, "target")
+			return true
+		end
+	end,
+-----------------------------------
 	["Frostbolt"] = function()
-		if ni.spell.available(42842)
+		if select(5, GetTalentInfo(2,4)) == 0
+		 and ni.spell.available(42842)
 		 and not ni.player.ismoving()
 		 and ni.spell.valid("target", 42842, true, true) then
 			ni.spell.cast(42842, "target")

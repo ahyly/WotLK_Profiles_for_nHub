@@ -62,7 +62,7 @@ ni.data.darhanger = {
 		-- Vars for Universal Pause --
 	PlayerBuffs = function(t)
 	for _, v in ipairs(pbuff) do
-		if ni.unit.buff(t, v, "EXACT") then 
+		if ni.unit.buff(t, v) then 
 		     return true
 		end
 	end
@@ -71,7 +71,7 @@ ni.data.darhanger = {
 
 	isStealable = function(t)
 	for i, v in ipairs(stealable) do
-		local _,_,_,_,_,_,_,_,StealableSpell = ni.unit.buff(t, v, "EXACT")
+		local _,_,_,_,_,_,_,_,StealableSpell = ni.unit.buff(t, v)
 		 if StealableSpell then
 		     return true
 		end
@@ -81,7 +81,7 @@ ni.data.darhanger = {
 
 	canPurge = function(t)
 	for i, v in ipairs(purgebuff) do
-		local name, icon, _, _, _, _, _, PurgebleSpell = ni.unit.buff(t, v, "EXACT")
+		local name, icon, _, _, _, _, _, PurgebleSpell = ni.unit.buff(t, v)
 		 if PurgebleSpell then
 		     return true
 		end
@@ -100,7 +100,7 @@ ni.data.darhanger = {
 	
 	DruidStuff = function(t)
 	for _, v in ipairs(flyform) do
-		if ni.unit.buff(t, v, "EXACT") then 
+		if ni.unit.buff(t, v) then 
 		     return true
 		end
 	end
@@ -109,7 +109,7 @@ ni.data.darhanger = {
 	
 	ishealer = function(t)
 	for _, v in ipairs(checkheal) do
-		if ni.unit.buff(t, v, "EXACT") then 
+		if ni.unit.buff(t, v) then 
 		     return true
 		end
 	end
@@ -136,7 +136,7 @@ ni.data.darhanger = {
 		-- Vars for Combat Pause --
 	targetDebuffs = function(t)
 	for _, v in ipairs(targetdebuff) do
-		if ni.unit.debuff(t, v, "EXACT") then 
+		if ni.unit.debuff(t, v) then 
 		     return true
 		end
 	end
@@ -145,7 +145,7 @@ ni.data.darhanger = {
 	
 	casterStop = function(t)
 	for _, v in ipairs(cbuff) do
-		if (ni.unit.buff(t, v, "EXACT") 
+		if (ni.unit.buff(t, v) 
 		or ni.data.darhanger.targetDebuffs("target")) then 
 		     return true
 		end
@@ -155,7 +155,7 @@ ni.data.darhanger = {
 	
 	meleeStop = function(t)
 	for _, v in ipairs(mbuff) do
-		if (ni.unit.buff(t, v, "EXACT") 
+		if (ni.unit.buff(t, v) 
 		or ni.data.darhanger.targetDebuffs("target")) then 
 		     return true
 		end
@@ -165,7 +165,7 @@ ni.data.darhanger = {
 	
 	tankStop = function(t)
 	for _, v in ipairs(tbuff) do
-		if (ni.unit.buff(t, v, "EXACT") 
+		if (ni.unit.buff(t, v) 
 		or ni.data.darhanger.targetDebuffs("target")) then 
 		     return true
 		end
@@ -183,7 +183,7 @@ ni.data.darhanger = {
 	
 	PlayerDebuffs = function(t)
 	for _, v in ipairs(pdebuff) do
-            if (ni.unit.debuff(t, v, "EXACT") 
+            if (ni.unit.debuff(t, v) 
             or ni.data.darhanger.SindragosaCheck()) then 
 		     return true
 		end
@@ -193,7 +193,7 @@ ni.data.darhanger = {
 	
 	Berserk = function(t)
 	for _, v in ipairs(bersrage) do
-            if ni.unit.debuff(t, v, "EXACT") then 
+            if ni.unit.debuff(t, v) then 
 		     return true
 		end
 	end
@@ -203,7 +203,7 @@ ni.data.darhanger = {
 		-- Will of the Forsaken --
 	forsaken = function(t)
 	for _, v in ipairs(forsdebuff) do
-            if ni.unit.debuff(t, v, "EXACT") then 
+            if ni.unit.debuff(t, v) then 
 		     return true
 		end
 	end
@@ -372,7 +372,10 @@ elseif classlower == "mage" then
 	ni.data.darhanger[classlower].FoF = function() 
 		return ni.player.buff(44545) 
 	end
-	
+	-- Sirus Custom T4 --
+	ni.data.darhanger[classlower].itemsetT4 = {
+		29076, 29077, 29078, 29079, 29080, 100460, 100461, 100462, 100463, 100464 
+	};	
 	-- Mages Wards --
 	ni.data.darhanger[classlower].FireWard = function()
 		for _, v in ipairs(firedots) do

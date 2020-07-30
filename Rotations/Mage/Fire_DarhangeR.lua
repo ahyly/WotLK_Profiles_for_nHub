@@ -87,7 +87,7 @@ local queue = {
 	"Livingbomb AoE",
 	"Flamestrike",
 	"Dragon's Breath",	
-	"Scorch",
+	"Scorch (Improved Scorch check)",
 	"Remove Curse (Member)",
 	"Remove Curse (Self)",	
 	"Fire Blast (Move)",
@@ -429,9 +429,13 @@ local abilities = {
 		end
 	end,
 -----------------------------------
-	["Scorch"] = function()
-		if not ni.unit.debuff("target", 22959)
+	["Scorch (Improved Scorch check)"] = function()
+		local winterChill, _, _, winterChill_stacks = ni.unit.debuff("target", 12579)
+		if select(5, GetTalentInfo(2,11)) == 3
+		 and (not winterChill or winterChill_stacks == 5)
+		 and not ni.unit.debuff("target", 22959)
 		 and not ni.unit.debuff("target", 17800)
+		 and ni.unit.debuffremaining("target", 22959) < 2.5
 		 and ni.spell.available(42859)
 		 and ni.spell.valid("target", 42859, true, true)
 		 and GetTime() - ni.data.darhanger.mage.LastScorch > 3 then

@@ -680,10 +680,13 @@ local abilities = {
 	end,
 -----------------------------------
 	["Shadow Bolt (Shadow Mastery Check)"] = function()
+		local winterChill, _, _, winterChill_stacks = ni.unit.debuff("target", 12579)
 		if select(5, GetTalentInfo(3,1)) >= 4
-		 and not ni.unit.debuff("target", 17800)
+		 and (not winterChill or winterChill_stacks == 5)
 		 and not ni.unit.debuff("target", 22959)
+		 and not ni.unit.debuff("target", 17800)		 
 		 and ni.spell.available(47809)
+		 and ni.unit.debuffremaining("target", 17800) < 2.5
 		 and ni.spell.valid("target", 47809, true, true)
 		 and GetTime() - ni.data.darhanger.warlock.LastShadowbolt > 3 then
 			ni.spell.cast(47809, "target")
