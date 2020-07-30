@@ -19,6 +19,7 @@ local freedomdebuff = { 45524, 1715, 3408, 59638, 20164, 25809, 31589, 51585, 50
 local flyform = { 33357, 1066, 33943, 40120 };
 local checkheal = { 33891, 20216, 31842, 31834, 55166, 53390, 59891, 63725, 63734, 33151, 64911, 70806, 70757 };
 local purgebuff = {48068, 48066, 61301, 43039, 43020, 48441, 11841, 43046, 18100 };
+local bleedUp = { 48564, 48566, 46856 };
 local _, class = UnitClass("player");
 
 	-- Debuger -- 
@@ -183,7 +184,7 @@ ni.data.darhanger = {
 	
 	PlayerDebuffs = function(t)
 	for _, v in ipairs(pdebuff) do
-            if (ni.unit.debuff(t, v) 
+            if (ni.unit.debuff(t, v, "EXACT") 
             or ni.data.darhanger.SindragosaCheck()) then 
 		     return true
 		end
@@ -316,14 +317,8 @@ elseif classlower == "druid" then
 	ni.data.darhanger[classlower].berserk = function() 
 		return select(11, ni.unit.buff("player", 50334))
 	end
-	ni.data.darhanger[classlower].bmangle = function()
-		return select(7, ni.unit.debuff("target", 48564))
-	end
 	ni.data.darhanger[classlower].lacerate = function() 
 		return select(7, ni.unit.debuff("target", 48568, "player"))
-	end
-	ni.data.darhanger[classlower].mangle = function() 
-		return select(7, ni.unit.debuff("target", 48566)) 
 	end
 	ni.data.darhanger[classlower].rip = function() 
 		return select(7, ni.unit.debuff("target", 49800, "player")) 
@@ -336,6 +331,15 @@ elseif classlower == "druid" then
 	end
 	ni.data.darhanger[classlower].savage = function() 
 		return select(7, ni.unit.buff("player", 52610)) 
+	end
+	-- Bleed  Buff --
+	ni.data.darhanger[classlower].BleedBuff = function()
+		for _, v in ipairs(bleedUp) do
+		 if ni.unit.debuff("target", v) then 
+		     return true
+			end
+		end
+		     return false
 	end
 elseif classlower == "hunter" then
 	ni.data.darhanger[classlower].LastMD = 0;

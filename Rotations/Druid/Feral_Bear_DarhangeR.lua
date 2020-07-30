@@ -319,10 +319,10 @@ local abilities = {
 -----------------------------------
 	["Lacerate"] = function()
 		local lacerate, _, _, count = ni.unit.debuff("target", 48568, "player")
-		local bmangle = ni.data.darhanger.druid.bmangle()  
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if (lacerate == nil
 		 or count < 5 or ni.unit.debuffremaining("target", 48568, "player") < 3)
-		 and bmangle
+		 and BleedBuff
 		 and ni.spell.isinstant(48568)
 		 and ni.spell.available(48568)
 		 and ni.spell.valid("target", 48568, true, true) then 

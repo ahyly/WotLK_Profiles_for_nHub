@@ -303,10 +303,10 @@ local abilities = {
 		local savage = ni.data.darhanger.druid.savage() 
 		local tiger = ni.data.darhanger.druid.tiger() 
 		local rip = ni.data.darhanger.druid.rip()
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and tiger == nil
-		 and mangle
+		 and BleedBuff
 		 and ni.spell.isinstant(50334)
 		 and ni.spell.available(50334)
 		 and ni.player.power() < 35
@@ -321,9 +321,9 @@ local abilities = {
 	["Ferocious Bite"] = function()
 		local savage = ni.data.darhanger.druid.savage() 
 		local rip = ni.data.darhanger.druid.rip()
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if ni.spell.available(48577)
-		 and mangle
+		 and BleedBuff
 		 and ( savage ~= nil and ( savage - GetTime() > 11 ) )
 		 and ( rip ~= nil and ( rip - GetTime() > 8 ) )
 		 and ni.spell.isinstant(48577)
@@ -336,9 +336,9 @@ local abilities = {
 -----------------------------------
 	["Savage Roar"] = function()
 		local savage = ni.data.darhanger.druid.savage() 
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if ni.spell.available(52610)
-		 and mangle
+		 and BleedBuff
 		 and ( savage == nil or ( savage - GetTime() <= 2 ) )
 		 and GetComboPoints("player") >= 1
 		 and ni.spell.isinstant(48574)
@@ -349,11 +349,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Rip"] = function()
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		local rip = ni.data.darhanger.druid.rip()
 		if GetComboPoints("player") >= 5
 		 and ni.spell.available(52610)
-		 and mangle
+		 and BleedBuff
 		 and ( rip == nil or ( rip - GetTime() <= 2 ) )
 		 and ni.spell.isinstant(49800)
 		 and ni.spell.valid("target", 49800, true, true) then
@@ -364,11 +364,11 @@ local abilities = {
 -----------------------------------
 	["Savage Roar()"] = function()
 		local savage = ni.data.darhanger.druid.savage() 
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		local rip = ni.data.darhanger.druid.rip()
 		if ni.spell.available(52610)
 		 and GetComboPoints("player") >= 3
-		 and mangle
+		 and BleedBuff
 		 and ( savage == nil or ( savage - GetTime() <= 8 ) )
 		 and ( savage == nil or ( savage and rip == nil ) 
 		 or ( savage and rip and rip - GetTime() >= -3 ) ) 
@@ -380,10 +380,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Mangle (Cat)"] = function()
-		local mangle = ni.data.darhanger.druid.mangle()
-		local enemies = ni.unit.enemiesinrange("target", 7)
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if ni.spell.available(48566)
-		 and ( mangle == nil or ( mangle - GetTime() <= 2 ) )
+		 and BleedBuff == nil
 		 and ni.spell.isinstant(48566)		 
 		 and ni.spell.valid("target", 48566, true, true) then
 			ni.spell.cast(48566, "target")
@@ -402,10 +401,10 @@ local abilities = {
 	end,
 -----------------------------------
 	["Rake"] = function()
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		local rake = ni.data.darhanger.druid.rake()
 		if ni.spell.available(48574)
-		 and mangle
+		 and BleedBuff
 		 and ni.spell.isinstant(48574)	
 		 and ( rake == nil or ( rake - GetTime() <= 1 ) )
 		 and ni.spell.valid("target", 48574, true, true) then
@@ -416,13 +415,12 @@ local abilities = {
 -----------------------------------
 	["Shred"] = function()
 		local savage = ni.data.darhanger.druid.savage()
-		local mangle = ni.data.darhanger.druid.mangle()
+		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		local rake = ni.data.darhanger.druid.rake()
 		local rip = ni.data.darhanger.druid.rip()
 		local berserk = ni.data.darhanger.druid.berserk()
-		local enemies = ni.unit.enemiesinrange("target", 7)
 		if ni.spell.available(48572)
-		 and mangle
+		 and BleedBuff
 		 and ((GetComboPoints("player") <= 4
 		 or ( rip - GetTime() <= 1 ) )
 		 and rake ~= nil
@@ -432,7 +430,8 @@ local abilities = {
 		 or ni.spell.cd(50213) <= 3 ) )
 		 or ( GetComboPoints("player") <= 0 
 		 and ( savage == nil 
-		 or ( savage - GetTime() <= 2 ) ) ) ) then 
+		 or ( savage - GetTime() <= 2 ) ) ) ) 
+		 and ni.spell.valid("target", 48566) then 
 			if ni.player.isbehind("target") then
 				ni.spell.cast(48572, "target")
 				return true
