@@ -382,7 +382,7 @@ local abilities = {
 	["Mangle (Cat)"] = function()
 		local BleedBuff = ni.data.darhanger.druid.BleedBuff()
 		if ni.spell.available(48566)
-		 and BleedBuff == nil
+		 and not BleedBuff
 		 and ni.spell.isinstant(48566)		 
 		 and ni.spell.valid("target", 48566, true, true) then
 			ni.spell.cast(48566, "target")

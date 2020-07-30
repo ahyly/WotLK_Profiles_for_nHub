@@ -1,5 +1,12 @@
 <img src="https://nhub.app/_media/logo.png" alt="Logo of ni" width="256"/>
 
+## Profile support and compatibility
+* Profile support every 3.3.5a Blizzlike Servers;
+  * Also include multilang support;
+* If you play on custom servers like Sirus or HWoW you need profiles for this servers;
+  * [Sirus profiles](https://github.com/darhanger/Ni-Profiles-Sirus)
+	* include custom T4/T5 support
+
 ## Profile Status & [ChangeLog](https://github.com/darhanger/Ni-Profiles_Public/wiki/ChangeLog)
 ### Support Status Meanings 
 * ✔️ - works well, for simmple raiding;
