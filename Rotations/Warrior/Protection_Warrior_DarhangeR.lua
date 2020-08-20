@@ -1,6 +1,8 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
 local enemies = { };
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
 local function ActiveEnemies()
 	table.wipe(enemies);
 	enemies = ni.unit.enemiesinrange("target", 7);
@@ -11,30 +13,33 @@ local function ActiveEnemies()
 	end
 	return #enemies;
 end
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_ProtоWarrior.xml",
-	{ type = "title", text = "Protection Warrior by DarhangeR" },
+	{ type = "title", text = "Protection Warrior by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },
+	{ type = "entry", text = "Auto Stence", tooltip = "Auto use proper stence", enabled = true, key = "stence" },		
 	{ type = "entry", text = "Battle Shout", enabled = false, key = "battleshout" },
 	{ type = "entry", text = "Commanding Shout", enabled = true, key = "commandshout" },
-	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Auto Interrupt", tooltip = "Auto check and interrupt all interruptible spells", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },		
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "page", number = 1, text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
 	{ type = "entry", text = "Berserker Rage (Anti-Contol)", enabled = true, key = "bersrage" },
-	{ type = "entry", text = "Last Stand + Enraged Regeneration", enabled = true, value = 27, key = "regen" },
-	{ type = "entry", text = "Shield Wall", enabled = true, value = 37, key = "wall" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Last Stand + Enraged Regeneration", tooltip = "Use spell when player HP < %", enabled = true, value = 27, key = "regen" },
+	{ type = "entry", text = "Shield Wall", tooltip = "Use spell when player HP < %", enabled = true, value = 37, key = "wall" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %",  enabled = true, value = 30, key = "healpotionuse" },
 	{ type = "separator" },
-	{ type = "title", text = "Rotation Settings" },
+	{ type = "page", number = 2, text = "|cffEE4000Rotation Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Taunt (Auto Agro)", enabled = false, key = "tau" },
-	{ type = "entry", text = "Rend (Boss only)", enabled = true, key = "rend" },
+	{ type = "entry", text = "Taunt (Auto Agro)", tooltip = "Auto use spell to agro enemies in 30 yard radius", enabled = false, key = "tau" },
+	{ type = "entry", text = "Rend", tooltip = "Work only on bosses", enabled = true, key = "rend" },
 	{ type = "entry", text = "Thunder Clap (AoE)", enabled = true, key = "thunder" },
-	{ type = "entry", text = "Heroic Strike/Cleave minimal rage", value = 35, key = "heroiccleave" },
+	{ type = "entry", text = "Heroic Strike/Cleave", tooltip = "Minimal rage threshold for use spells", value = 35, key = "heroiccleave" },
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -59,6 +64,12 @@ local function GetSetting(name)
         end
     end
 end;
+local function OnLoad()
+	ni.GUI.AddFrame("Protection_Warrior_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Protection_Warrior_DarhangeR");
+end
 
 local queue = {
 	"Window",
@@ -92,9 +103,10 @@ local queue = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -108,8 +120,10 @@ local abilities = {
 	end,
 -----------------------------------
 	["Defensive Stance"] = function()
-		local DS = GetShapeshiftForm()
-		if DS ~= 2 then 
+		local _, enabled = GetSetting("stence")
+		if enabled 
+		 and not ni.player.aura(71)
+		 and ni.spell.available(71) then 
 			ni.spell.cast(71)
 			return true
 		end
@@ -121,8 +135,7 @@ local abilities = {
 		 return false
 	end
 		if enabled
-		 and ni.spell.available(47436)
-		 and ni.spell.isinstant(47436) then
+		 and ni.spell.available(47436) then
 			ni.spell.cast(47436)	
 			return true
 		end
@@ -134,8 +147,7 @@ local abilities = {
 		 return false
 	end
 		if enabled
-		 and ni.spell.available(47440) 
-		 and ni.spell.isinstant(47440) then
+		 and ni.spell.available(47440) then
 			ni.spell.cast(47440)	
 			return true
 		end
@@ -155,17 +167,16 @@ local abilities = {
 	["Berserker Rage"] = function()
 		local _, enabled = GetSetting("bersrage")
 		if enabled
-		 and ni.data.darhanger.Berserk("player")
-		 and ni.spell.isinstant(18499) 
-	     and ni.spell.available(18499) then
+		 and data.warrior.Berserk()
+	         and ni.spell.available(18499) then
 		    ni.spell.cast(18499)
 		    return true
 		end
 	end,	
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.tankStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.tankStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -206,7 +217,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -217,14 +228,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.spell.valid("target", 48125, true, true) then 
+		 and ni.spell.valid("target", 47465) then 
 					ni.spell.cast(hracial[i])
 					return true
 			end
 		end
 		--- Ally race
 		for i = 1, #alracial do
-		if ni.spell.valid("target", 48125, true, true)
+		if ni.spell.valid("target", 47465) 
 		 and ni.player.hp() < 20
 		 and IsSpellKnown(alracial[i])
 		 and ni.spell.available(alracial[i]) then 
@@ -238,12 +249,11 @@ local abilities = {
 		local _, enabled = GetSetting("autointerrupt")
 		if enabled	
 		 and ni.spell.shouldinterrupt("target")
-		 and ni.spell.isinstant(72) 
 		 and ni.spell.available(72)
-		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
+		 and GetTime() - data.LastInterrupt > 9
 		 and ni.spell.valid("target", 72)  then
 			ni.spell.castinterrupt("target")
-			ni.data.darhanger.LastInterrupt  = GetTime()
+			data.LastInterrupt  = GetTime()
 			return true
 		end
 	end,
@@ -252,7 +262,6 @@ local abilities = {
 		local value, enabled = GetSetting("regen");
 		if enabled
 		 and ni.player.hp() < value
-		 and ni.spell.isinstant(12975) 
 		 and ni.spell.available(12975) then
 			ni.spell.cast(12975)
 			return true
@@ -261,16 +270,14 @@ local abilities = {
 -----------------------------------
 	["Enraged Regeneration"] = function()
 		local enrage = { 18499, 12292, 29131, 14204, 57522 }
-		if ni.player.buff(12975)
-		 and ni.spell.isinstant(55694) 
+		if ni.player.buff(12975) 
 		 and ni.spell.available(55694) then
 		  for i = 1, #enrage do
 		   if ni.player.buff(enrage[i]) then
 		       ni.spell.cast(55694)
 		else
 		 if not ni.player.buff(enrage[i])
-		  and ni.spell.cd(2687) == 0
-		  and ni.spell.isinstant(2687) then
+		  and ni.spell.cd(2687) == 0 then
 		       ni.spell.castspells("2687|55694")
 					return true
 					end
@@ -283,7 +290,6 @@ local abilities = {
 		local value, enabled = GetSetting("wall");
 		if enabled
 		 and ni.player.hp() < value
-		 and ni.spell.isinstant(871) 
 		 and ni.spell.available(871) then
 			ni.spell.cast(871)
 			return true
@@ -297,9 +303,8 @@ local abilities = {
 		 and (ni.unit.debuff("targettarget", 72410) 
 		 or ni.unit.debuff("targettarget", 72411) 
 		 or ni.unit.threat("player", "target") < 2 )
-		 and ni.spell.isinstant(355) 
 		 and ni.spell.available(355)
-		 and ni.data.darhanger.youInInstance()
+		 and data.youInInstance()
 		 and ni.spell.valid("target", 355, false, true, true) then
 			ni.spell.cast(355)
 			return true
@@ -309,8 +314,7 @@ local abilities = {
 	["Taunt (Ally)"] = function()
 		local _, enabled = GetSetting("grow")
    		if ni.spell.available(355)
-		 and ni.spell.isinstant(355)
-		 and (ni.data.darhanger.youInInstance()
+		 and (data.youInInstance()
 		 or enabled) then
 		 table.wipe(enemies);
 		 local enemies = ni.unit.enemiesinrange("player", 30)
@@ -335,9 +339,8 @@ local abilities = {
 		 or ni.unit.debuff("targettarget", 72411) 
 		 or ni.unit.threat("player", "target") < 2)
 		 and ni.spell.cd(355) ~= 0
-		 and ni.spell.isinstant(694) 
 		 and ni.spell.available(694)
-		 and ni.data.darhanger.youInInstance()
+		 and data.youInInstance()
 		 and ni.spell.valid("target", 694, true, true) then
 			ni.spell.cast(694)
 			return true
@@ -346,7 +349,6 @@ local abilities = {
 -----------------------------------
 	["Revenge"] = function()
 		if IsUsableSpell(GetSpellInfo(57823))
-		 and ni.spell.isinstant(57823) 
 		 and ni.spell.available(57823, true)
 		 and ni.spell.valid("target", 57823, true, true) then
 			ni.spell.cast(57823, "target")
@@ -356,11 +358,10 @@ local abilities = {
 -----------------------------------
 	["Rend"] = function()
 		local _, enabled = GetSetting("rend")
-		local rend = ni.data.darhanger.warrior.rend()
+		local rend = data.warrior.rend()
 		if enabled
 		 and ni.unit.isboss("target")
-		 and (rend == nil or (rend - GetTime() <= 2))
-		 and ni.spell.isinstant(47465) 
+		 and (rend == nil or (rend <= 2))
 		 and ni.spell.available(47465, true)
 		 and ni.spell.valid("target", 47465, true, true) then
 			ni.spell.cast(47465)
@@ -379,7 +380,6 @@ local abilities = {
 -----------------------------------
 	["Shield Slam"] = function()
 		if ni.spell.available(47488, true)
-		 and ni.spell.isinstant(47488) 
 		 and ni.spell.valid("target", 47488, true, true) then
 			ni.spell.cast(47488)
 			return true
@@ -406,10 +406,10 @@ local abilities = {
 				local tar = enemies[i].guid;
 				if ni.unit.creaturetype(enemies[i].guid) ~= 8 
 				 and not ni.unit.debuff(tar, 47437)
-				 and GetTime() - ni.data.darhanger.warrior.LastShout > 4
+				 and GetTime() - data.warrior.LastShout > 4
 				 and ni.spell.available(47437) then
 					ni.spell.cast(47437, tar)
-					ni.data.darhanger.warrior.LastShout = GetTime()
+					data.warrior.LastShout = GetTime()
 					return true
 				end
 			end
@@ -418,7 +418,6 @@ local abilities = {
 -----------------------------------
 	["Devastate"] = function()
 		if ni.spell.available(47498, true)
-		 and ni.spell.isinstant(47498) 
 		 and ni.spell.valid("target", 47498, true, true) then
 			ni.spell.cast(47498)
 			return true
@@ -455,4 +454,22 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Protection_DarhangeR", queue, abilities, data, { [1] = "Protection Warrior by DarhangeR", [2] = items });
+	ni.bootstrap.profile("Protection_Warrior_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Protection_Warrior_DarhangeR", queue, abilities);
+end

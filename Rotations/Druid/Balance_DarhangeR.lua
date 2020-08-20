@@ -1,21 +1,29 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_Balance.xml",
-	{ type = "title", text = "Balance Druid by DarhangeR" },
+	{ type = "title", text = "Balance Druid by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Auto Form", enabled = true, key = "autoform" },	
-	{ type = "entry", text = "Innervate (Self)", enabled = true, value = 34, key = "innervate" },
-	{ type = "entry", text = "Innervate (Auto-Cast on Healers)", enabled = false, value = 35, key = "innervateheal" },
+	{ type = "entry", text = "Auto Form", tooltip = "Auto use proper form", enabled = true, key = "autoform" },	
+	{ type = "entry", text = "Innervate (Self)", tooltip = "Use spell when player mana < %", enabled = true, value = 34, key = "innervate" },
+	{ type = "entry", text = "Innervate (Auto-Cast on Healers)", tooltip = "Auto check healears and use spell when they mana < %", enabled = false, value = 35, key = "innervateheal" },
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },		
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "title", text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Barkskin", enabled = true, value = 40, key = "barkskin" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
-	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "entry", text = "Barkskin", tooltip = "Use spell when player HP < %", enabled = true, value = 40, key = "barkskin" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %",  enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", tooltip = "Use Mana Potions (if you have) when player mana < %", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "separator" },
+	{ type = "title", text = "|cffEE4000Rotation Settings" },
+	{ type = "separator" },
+	{ type = "entry", text = "Auto Control (Member)", tooltip = "Auto check and control member if he mindcontrolled or etc.", enabled = true, key = "control" },	
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -39,7 +47,13 @@ local function GetSetting(name)
             return v.value
         end
     end
-end;	
+end;
+local function OnLoad()
+	ni.GUI.AddFrame("Balance_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Balance_DarhangeR");
+end
 
 local queue = {
 	"Window",
@@ -57,6 +71,7 @@ local queue = {
 	"Trinkets",
 	"Innervate",
 	"Barkskin",
+	"Control (Member)",
 	"Faerie Fire",
 	"Hurricane",
 	"Eclipses",
@@ -70,9 +85,10 @@ local queue = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -88,11 +104,10 @@ local abilities = {
 	["Gift of the Wild"] = function()
 		if ni.player.buff(48470)
 		 or not IsUsableSpell(GetSpellInfo(48470)) 
-		 and not ni.data.darhanger.DruidStuff("player") then 
+		 and not data.druid.DruidStuff("player") then 
 		 return false
 	end
-		if ni.spell.available(48470)
-		 and ni.spell.isinstant(48470) then
+		if ni.spell.available(48470) then
 			ni.spell.cast(48470)	
 			return true
 		end
@@ -100,8 +115,7 @@ local abilities = {
 -----------------------------------
 	["Thorns"] = function()
 		if not ni.player.buff(53307)
-		 and ni.spell.available(53307)
-		 and ni.spell.isinstant(53307) then
+		 and ni.spell.available(53307) then
 			ni.spell.cast(53307)
 			return true
 		end
@@ -112,7 +126,7 @@ local abilities = {
 		if enabled
 		 and not ni.player.buff(24858)
 		 and ni.spell.available(24858)
-		 and not ni.data.darhanger.DruidStuff("player") then
+		 and not data.druid.DruidStuff("player") then
 			ni.spell.cast(24858)
 			return true
 		end
@@ -124,18 +138,16 @@ local abilities = {
 		if enabled
 		 and ni.player.power() < value
 		 and not ni.player.buff(29166)
-		 and ni.spell.isinstant(29166)
 		 and ni.spell.available(29166) 
-		 and not ni.data.darhanger.DruidStuff("player")	then
+		 and not data.druid.DruidStuff("player")	then
 			ni.spell.cast(29166)
 			return true
 		end
 		if enabledH
-		 and ni.spell.isinstant(29166)
 		 and ni.spell.available(29166) then
 		  for i = 1, #ni.members do
 		  local ally = ni.members[i].unit
-		   if ni.data.darhanger.ishealer(ally)
+		   if data.ishealer(ally)
 		    and ni.unit.power(ally) < valueH
 		    and not ni.unit.buff(ally, 29166)
 			and not ni.unit.buff(ally, 54428)
@@ -148,8 +160,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.casterStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.casterStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -204,7 +216,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -215,7 +227,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -236,7 +248,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(10)
@@ -248,14 +260,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 48461) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -267,20 +279,19 @@ local abilities = {
 		local value, enabled = GetSetting("barkskin");
 		if enabled
 		 and ni.player.hp() < value
-		 and ni.spell.isinstant(22812)
-		 and ni.spell.available(22812) then
+		 and ni.spell.available(22812) 
+		 and not ni.player.buff(22812) then
 			ni.spell.cast(22812)
 			return true
 		end
 	end,
 -----------------------------------
 	["Faerie Fire"] = function()
-		local mFaerieFire = ni.data.darhanger.druid.mFaerieFire() 
-		local fFaerieFire = ni.data.darhanger.druid.fFaerieFire() 
+		local mFaerieFire = data.druid.mFaerieFire() 
+		local fFaerieFire = data.druid.fFaerieFire() 
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and not fFaerieFire
 		 and not mFaerieFire
-		 and ni.spell.isinstant(770)
 		 and ni.spell.available(770) then
 			ni.spell.cast(770)
 			return true
@@ -298,7 +309,6 @@ local abilities = {
 -----------------------------------
 	["Starfall"] = function()
 		if ni.rotation.custommod()
-		 and ni.spell.isinstant(53201)
 		 and ni.spell.available(53201)
 		 and ni.spell.valid("target", 48461) then
 			ni.spell.cast(53201)
@@ -308,8 +318,7 @@ local abilities = {
 -----------------------------------
 	["Force of Nature"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
-		and ni.spell.isinstant(33831)
-		and ni.data.darhanger.CDsaverTTD("target")
+		and data.CDsaverTTD("target")
 		and ni.spell.available(33831) then
 			ni.spell.castat(33831, "target")
 			return true
@@ -317,8 +326,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Moonfire"] = function()
-		local mFire = ni.data.darhanger.druid.mFire()
-		local solar = ni.data.darhanger.druid.solar()
+		local mFire = data.druid.mFire()
+		local solar = data.druid.solar()
 		if ni.spell.available(48463)
 		 and (ni.player.ismoving()
 		 and (not mFire
@@ -326,7 +335,6 @@ local abilities = {
 		 or ((not solar 
 		 or (solar and solar - GetTime() > 5))
 		 and not mFire)
-		 and ni.spell.isinstant(48463)
 		 and ni.spell.valid("target", 48463, true, true) then
 			ni.spell.cast(48463, "target")
 			return true
@@ -334,8 +342,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Insect Swarm"] = function()
-		local iSwarm = ni.data.darhanger.druid.iSwarm()
-		local lunar = ni.data.darhanger.druid.lunar()
+		local iSwarm = data.druid.iSwarm()
+		local lunar = data.druid.lunar()
 		if ni.spell.available(48468)
 		 and (ni.player.ismoving()
 		 and (not iSwarm
@@ -343,7 +351,6 @@ local abilities = {
 		 or ((not lunar 
 		 or (lunar and lunar - GetTime() > 1))
 		 and not iSwarm)
-		 and ni.spell.isinstant(48468)
 		 and ni.spell.valid("target", 48468, false, true, true) then
 			ni.spell.cast(48468, "target")
 			return true
@@ -382,6 +389,22 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Control (Member)"] = function()
+		local _, enabled = GetSetting("control")
+		if enabled
+		 and ni.spell.available(33786) then
+		  for i = 1, #ni.members do
+		   local ally = ni.members[i].unit
+		    if data.ControlMember(ally)
+			and not data.UnderControlMember(ally)
+			and ni.spell.valid(ally, 33786, false, true, true) then
+				ni.spell.cast(33786, ally)
+				return true
+				end
+			end
+		end
+	end,
+-----------------------------------
 	["Window"] = function()
 		if not popup_shown then
 		 ni.debug.popup("Balance Druid by DarhangeR for 3.3.5a", 
@@ -391,4 +414,22 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Balance_DarhangeR", queue, abilities, data, { [1] = "Balance Druid by DarhangeR", [2] = items });
+	ni.bootstrap.profile("Balance_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Balance_DarhangeR", queue, abilities);
+end

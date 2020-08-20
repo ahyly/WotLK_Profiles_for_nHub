@@ -1,6 +1,8 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
 local enemies = { };
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
 local function ActiveEnemies()
 	table.wipe(enemies);
 	enemies = ni.unit.enemiesinrange("target", 7);
@@ -11,39 +13,43 @@ local function ActiveEnemies()
 	end
 	return #enemies;
 end
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_Retri.xml",
-	{ type = "title", text = "Retribution Paladin by DarhangeR" },
+	{ type = "title", text = "Retribution Paladin by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },	
-	{ type = "entry", text = "Divine Plea", enabled = true, value = 60, key = "plea" },
-	{ type = "entry", text = "Sacred Shield", enabled = true, key = "sacred" },
+	{ type = "entry", text = "Divine Plea", tooltip = "Use spell when player mana < %", enabled = true, value = 60, key = "plea" },
+	{ type = "entry", text = "Sacred Shield", tooltip = "Enable/Disable spell for cast on player", enabled = true, key = "sacred" },
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },	
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "page", number = 1, text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Flash of Light (Self)", enabled = true, value = 90, key = "flashoflight" },
-	{ type = "entry", text = "Lay on Hands (Self)", enabled = true, value = 25, key = "layon" },
-	{ type = "entry", text = "Divine Shield", enabled = true, value = 12, key = "divineshield" },
-	{ type = "entry", text = "Divine Protection", enabled = true, value = 30, key = "divineprot" },
-	{ type = "entry", text = "Hand of Protection (Member)", enabled = true, value = 12, key = "handofprot" },
-	{ type = "entry", text = "Hand of Salvation (Member)", enabled = true, key = "salva" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },	
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
-	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "entry", text = "Flash of Light (Self)", tooltip = "Use spell when player HP < %", enabled = true, value = 90, key = "flashoflight" },
+	{ type = "entry", text = "Lay on Hands (Self)", tooltip = "Use spell when player HP < %", enabled = true, value = 25, key = "layon" },
+	{ type = "entry", text = "Divine Shield", tooltip = "Use spell when player HP < %", enabled = true, value = 12, key = "divineshield" },
+	{ type = "entry", text = "Divine Protection", tooltip = "Use spell when player HP < %", enabled = true, value = 30, key = "divineprot" },
+	{ type = "entry", text = "Hand of Protection (Member)", tooltip = "Use spell when member HP < %. Work only on caster clases", enabled = true, value = 25, key = "handofprot" },
+	{ type = "entry", text = "Hand of Salvation (Member)", tooltip = "Auto check member agro and use spell", enabled = true, key = "salva" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %",  enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", tooltip = "Use Mana Potions (if you have) when player mana < %", enabled = true, value = 25, key = "manapotionuse" },
 	{ type = "separator" },
-	{ type = "title", text = "Rotation Settings" },
+	{ type = "page", number = 2, text = "|cffEE4000Rotation Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Consecration", enabled = true, key = "concentrat" },
-	{ type = "entry", text = "Mana threshold for use", value = 30, key = "concentratmana" },
-	{ type = "entry", text = "Holy Wrath (Auto Use)", enabled = false, key = "holywrath" },		
+	{ type = "entry", text = "Consecration", tooltip = "Enable/Disable spell for using in rotation", enabled = true, key = "concentrat" },
+	{ type = "entry", text = "Mana threshold for use", tooltip = "Use Consecration spell when player mana > %", value = 30, key = "concentratmana" },
+	{ type = "entry", text = "Holy Wrath (Auto Use)", tooltip = "Auto check and use spell on proper enemies", enabled = false, key = "holywrath" },
+	{ type = "entry", text = "Turn Evil (Auto Use)", tooltip = "Auto check and use spell on proper enemies", enabled = false, key = "turn" },	
+	{ type = "entry", text = "Auto Control (Member)", tooltip = "Auto check and control member if he mindcontrolled or etc.", enabled = true, key = "control" },	
 	{ type = "separator" },
 	{ type = "title", text = "Dispel" },
 	{ type = "separator" },
-	{ type = "entry", text = "Cleanse (Self)", enabled = true, key = "cleans" },
-	{ type = "entry", text = "Cleanse (Member)", enabled = false, key = "cleansmemb" },
-	{ type = "entry", text = "Hand of Freedom (Self)", enabled = true, key = "freedom" },
-	{ type = "entry", text = "Hand of Freedom (Member)", enabled = false, key = "freedommemb" },
+	{ type = "entry", text = "Cleanse (Self)", tooltip = "Auto dispel debuffs from player", enabled = true, key = "cleans" },
+	{ type = "entry", text = "Cleanse (Member)", tooltip = "Auto dispel debuffs from members", enabled = false, key = "cleansmemb" },
+	{ type = "entry", text = "Hand of Freedom (Self)", tooltip = "Auto cast on player when you have criteria for spell", enabled = true, key = "freedom" },
+	{ type = "entry", text = "Hand of Freedom (Member)", tooltip = "Auto cast on member when he have criteria for spell", enabled = false, key = "freedommemb" },
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -68,6 +74,12 @@ local function GetSetting(name)
         end
     end
 end;	
+local function OnLoad()
+	ni.GUI.AddFrame("Retri_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Retri_DarhangeR");
+end
 
 local queue = {
 	"Window",
@@ -76,6 +88,7 @@ local queue = {
 	"Seal of Corruption/Vengeance",
 	"Seal of Command",
 	"Cancel Righteous Fury",
+	"Auto Track Undeads",	
 	"Combat specific Pause",
 	"Healthstone (Use)",
 	"Heal Potions (Use)",
@@ -94,6 +107,8 @@ local queue = {
 	"Divine Plea",
 	"Sacred Shield",
 	"Avenging Wrath",
+	"Turn Evil (Auto Use)",
+	"Control (Member)",
 	"Hammer of Wrath",	
 	"Judgement of Wisdom",
 	"Holy Wrath (Auto Use)",	
@@ -108,9 +123,10 @@ local queue = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -123,15 +139,33 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Auto Track Undeads"] = function()
+		if ni.player.hasglyph(57947) then
+		 if not UnitAffectingCombat("player") 
+		  and GetTime() - data.paladin.LastTrack > 3 then
+				SetTracking(nil);	
+		 end
+			-- Undead --				
+		 if UnitAffectingCombat("player")
+		  and ni.unit.exists("target")
+		  and ni.unit.creaturetype("target") == 6
+		  and ni.spell.available(5502) 
+		  and GetTime() - data.paladin.LastTrack > 3 then 
+				data.paladin.LastTrack = GetTime()		  
+				ni.spell.cast(5502)
+			end				
+		end
+	end,
+-----------------------------------
 	["Seal of Corruption/Vengeance"] = function()
 		if ActiveEnemies() < 2
 		 and IsSpellKnown(53736)
 		 and ni.spell.available(53736) then
 		 if not ni.player.buff(53736)
-		 and GetTime() - ni.data.darhanger.paladin.LastSeal > 3
+		 and GetTime() - data.paladin.LastSeal > 3
 		 and not ni.player.buff(31801) then
 			ni.spell.cast(53736)
-			ni.data.darhanger.paladin.LastSeal = GetTime()
+			data.paladin.LastSeal = GetTime()
 			return true
 		end
 	end
@@ -139,10 +173,10 @@ local abilities = {
 		and IsSpellKnown(31801)
 		and ni.spell.available(31801) then
 		if not ni.player.buff(31801) 
-		 and GetTime() - ni.data.darhanger.paladin.LastSeal > 3
+		 and GetTime() - data.paladin.LastSeal > 3
 		 and not ni.player.buff(53736) then
 			ni.spell.cast(31801)
-			ni.data.darhanger.paladin.LastSeal = GetTime()
+			data.paladin.LastSeal = GetTime()
 			return true
 			end
 		end
@@ -152,10 +186,10 @@ local abilities = {
 		if ActiveEnemies() > 1	
 		 and IsSpellKnown(20375)
 		 and ni.spell.available(20375)
-		 and GetTime() - ni.data.darhanger.paladin.LastSeal > 3
+		 and GetTime() - data.paladin.LastSeal > 3
 		 and not ni.player.buff(20375) then 
 			ni.spell.cast(20375)
-			ni.data.darhanger.paladin.LastSeal = GetTime()
+			data.paladin.LastSeal = GetTime()
 			return true
 		end
 	end,
@@ -171,8 +205,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.meleeStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.meleeStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -227,7 +261,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -258,7 +292,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellInRange(GetSpellInfo(35395), "target") == 1 then
 			ni.player.useinventoryitem(10)
@@ -270,14 +304,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(35395), "target") == 1 then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(35395), "target") == 1 then
 			ni.player.useinventoryitem(14)
 			return true
@@ -287,7 +321,7 @@ local abilities = {
 -----------------------------------
 	["Lay on Hands (Self)"] = function()
 		local value, enabled = GetSetting("layon");
-		local forb = ni.data.darhanger.paladin.forb()
+		local forb = data.paladin.forb()
 		if enabled
 		 and ni.player.hp() < value
 		 and not forb
@@ -299,7 +333,7 @@ local abilities = {
 -----------------------------------
 	["Divine Shield"] = function()
 		local value, enabled = GetSetting("divineshield");
-		local forb = ni.data.darhanger.paladin.forb()
+		local forb = data.paladin.forb()
 		if enabled
 		 and ni.player.hp() < value
 		 and not forb
@@ -311,11 +345,12 @@ local abilities = {
 -----------------------------------
 	["Divine Protection"] = function()
 		local value, enabled = GetSetting("divineprot");
-		local forb = ni.data.darhanger.paladin.forb()
+		local forb = data.paladin.forb()
 		if enabled
 		 and ni.player.hp() < value
 		 and not forb
-		 and ni.spell.available(498) then
+		 and ni.spell.available(498)
+		 and not ni.player.buff(498)  then
 			ni.spell.cast(498)
 			return true
 		end
@@ -323,7 +358,7 @@ local abilities = {
 -----------------------------------
 	["Flash of Light (Self)"] = function()
 		local value, enabled = GetSetting("flashoflight");
-		local aow = ni.data.darhanger.paladin.aow()
+		local aow = data.paladin.aow()
 		if enabled
 		 and ni.player.hp() < value
 		 and aow
@@ -338,43 +373,39 @@ local abilities = {
 	["Hand of Salvation (Member)"] = function()
 		local _, enabled = GetSetting("salva")
 		if enabled
-		 and #ni.members > 1
-		 and ni.spell.isinstant(1038)			 
+		 and #ni.members > 1		 
 		 and ni.spell.available(1038) then
-		  for i = 1, #ni.members do
-		   if ni.members[i].threat >= 2
-		   and not ni.members[i].istank
-		   and not UnitIsDeadOrGhost(ni.members[i].unit)
-		   and not ni.unit.buff(ni.members[i].unit, 1038)
-		   and not ni.unit.buff(ni.members[i].unit, 6940)
-		   and not ni.unit.buff(ni.members[i].unit, 10278)
-		   and ni.spell.valid(ni.members[i].unit, 1038, false, true, true) then 
-				ni.spell.cast(1038, ni.members[i].unit)
+		  if ni.members[1].threat >= 2
+		   and not ni.members[1].istank
+		   and not data.paladin.HandActive(ni.members[1].unit)		    
+		   and ni.spell.valid(ni.members[1].unit, 1038, false, true, true) then 
+				ni.spell.cast(1038, ni.members[1].unit)
 				return true
-				end
 			end
 		end
 	end,
 -----------------------------------
 	["Hand of Protection (Member)"] = function()
-		local value, enabled = GetSetting("handprot");
+		local value, enabled = GetSetting("handofprot");
 		if enabled
-		 and #ni.members > 1
-		 and ni.spell.isinstant(10278)		 
+		 and #ni.members > 1		 
 		 and ni.spell.available(10278) then
-		 for i = 1, #ni.members do
-		  if ni.members[i].range
-		  and ni.members[i].hp < value
-		  and not ni.members[i].istank
-		  and not UnitIsDeadOrGhost(ni.members[i].unit)
-		  and not ni.unit.buff(ni.members[i].unit, 1038)
-		  and not ni.unit.buff(ni.members[i].unit, 6940)
-		  and not ni.unit.buff(ni.members[i].unit, 10278)
-		  and not ni.unit.debuff(ni.members[i].unit, 25771)
-		  and ni.spell.valid(ni.members[i].unit, 10278, false, true, true) then 
-				ni.spell.cast(10278, ni.members[i].unit)
+		  if ni.members[1].range
+		  and ni.members[1].hp < value
+		  and not ni.members[1].istank
+		  and ni.members[1].threat >= 2
+		  and ni.members[1].class ~= "DEATHKNIGHT"
+		  and not (ni.members[1].class == "DRUID"
+		  and ni.unit.buff(ni.members[1].unit, 768))
+		  and ni.members[1].class ~= "HUNTER"
+		  and ni.members[1].class ~= "PALADIN"
+		  and ni.members[1].class ~= "ROGUE"
+		  and ni.members[1].class ~= "WARRIOR"
+		  and not data.paladin.HandActive(ni.members[1].unit)
+		  and not ni.unit.debuff(ni.members[1].unit, 25771)
+		  and ni.spell.valid(ni.members[1].unit, 10278, false, true, true) then 
+				ni.spell.cast(10278, ni.members[1].unit)
 				return true
-				end
 			end
 		end
 	end,
@@ -383,8 +414,7 @@ local abilities = {
 		local value, enabled = GetSetting("plea");
 		if enabled 
 		 and ni.player.power() < value
-		 and not ni.player.buff(54428)
-		 and ni.spell.isinstant(54428) 		 
+		 and not ni.player.buff(54428)		 
 		 and ni.spell.available(54428) then
 			ni.spell.cast(54428)
 			return true
@@ -395,7 +425,6 @@ local abilities = {
 		local _, enabled = GetSetting("sacred")
 		if enabled
 		 and not ni.player.buff(53601)  
-		 and ni.spell.isinstant(53601) 
 		 and ni.spell.available(53601) then
 			ni.spell.cast(53601, "player")
 			return true
@@ -404,9 +433,8 @@ local abilities = {
 -----------------------------------
 	["Avenging Wrath"] = function()
 		if ( ni.vars.CD or ni.unit.isboss("target") )
-		 and ni.spell.isinstant(31884) 
 		 and ni.spell.available(31884)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 35395) then
 			ni.spell.cast(31884)
 			return true
@@ -415,7 +443,6 @@ local abilities = {
 -----------------------------------
 	["Judgement of Wisdom"] = function()
 		if ni.spell.available(53408)
-		 and ni.spell.isinstant(53408) 
 		 and ni.spell.valid("target", 53408, false, true, true) then
 			ni.spell.cast(53408, "target")
 			return true
@@ -424,7 +451,6 @@ local abilities = {
 -----------------------------------
 	["Divine Storm"] = function()
 		if ni.spell.available(53385)
-		 and ni.spell.isinstant(53385) 
 		 and ni.spell.valid("target", 35395) then
 			ni.spell.cast(53385, "target")
 			return true
@@ -433,7 +459,6 @@ local abilities = {
 -----------------------------------
 	["Crusader Strike"] = function()
 		if ni.spell.available(35395)
-		 and ni.spell.isinstant(35395) 
 		 and ni.spell.valid("target", 35395, true, true) then
 			ni.spell.cast(35395, "target")
 			return true
@@ -443,7 +468,6 @@ local abilities = {
 	["Holy Wrath (Auto Use)"] = function()
 		local _, enabled = GetSetting("concentrat")
 		if enabled
-		 and ni.spell.isinstant(48817)
 		 and ni.spell.available(48817)
 		 and (ni.unit.creaturetype("target") == 3
 		 or ni.unit.creaturetype("target") == 6)
@@ -455,7 +479,6 @@ local abilities = {
 -----------------------------------
 	["Holy Wrath (AoE)"] = function()
 		if ni.vars.combat.aoe
-		 and ni.spell.isinstant(48817)
 		 and ni.spell.available(48817)
 		 and ni.spell.valid("target", 35395, true, true) then
 			ni.spell.cast(48817)
@@ -466,9 +489,8 @@ local abilities = {
 	["Consecration"] = function()
 		local _, enabled = GetSetting("concentrat")
 		local value = GetSetting("concentratmana") 
-        if enabled
+		if enabled
 		 and ni.player.power() > value
-		 and ni.spell.isinstant(48819)
 		 and ni.spell.available(48819)
 		 and ni.spell.valid("target", 35395) then
 			ni.spell.cast(48819)
@@ -477,7 +499,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Exorcism"] = function()
-		local aow = ni.data.darhanger.paladin.aow()
+		local aow = data.paladin.aow()
 		if aow
 		 and ni.spell.isinstant(48801)
 		 and ni.spell.available(48801)
@@ -490,7 +512,6 @@ local abilities = {
 	["Hammer of Wrath"] = function()
 		if (ni.unit.hp("target") <= 20
 		 or IsUsableSpell(GetSpellInfo(48806)))
-		 and ni.spell.isinstant(48806)
 		 and ni.spell.available(48806)
 		 and ni.spell.valid("target", 48806, true, true) then
 			ni.spell.cast(48806, "target")
@@ -502,62 +523,127 @@ local abilities = {
 		local _, enabled = GetSetting("freedom")
 		if enabled
 		 and ni.player.ismoving()
-		 and ni.data.darhanger.FreedomUse("player")
-		 and ni.spell.isinstant(1044)
+		 and data.paladin.FreedomUse("player")
+		 and not data.paladin.HandActive("player")
 		 and ni.spell.available(1044) then
 			ni.spell.cast(1044, "player")
 			return true
 		end
 	end,
 -----------------------------------
-    ["Hand of Freedom (Member)"] = function()
-        local _, enabled = GetSetting("freedom")
-        if enabled
-		 and ni.spell.isinstant(1044)
-         and ni.spell.available(1044) then
+	["Hand of Freedom (Member)"] = function()
+		local _, enabled = GetSetting("freedommemb")
+		if enabled
+		 and ni.spell.available(1044) then
 		  for i = 1, #ni.members do
-			local ally = ni.members[i].unit
-			 if ni.unit.ismoving(ally)
-			  and ni.data.darhanger.FreedomUse(ally)
-			  and ni.spell.valid(ally, 1044, false, true, true) then
+		   local ally = ni.members[i].unit
+		    if ni.unit.ismoving(ally)
+		     and data.paladin.FreedomUse(ally)
+		     and not data.paladin.HandActive(ally)
+		     and ni.spell.valid(ally, 1044, false, true, true) then
 					ni.spell.cast(1044, ally)
 					return true
-                end
-            end
-        end
-    end,
+				end
+                   end
+		end
+	end,
 -----------------------------------
 	["Cleanse (Self)"] = function()
 		local _, enabled = GetSetting("cleans")
 		if enabled
 		 and ni.player.debufftype("Magic|Disease|Poison")
-		 and ni.spell.isinstant(4987)
 		 and ni.spell.available(4987)
 		 and ni.healing.candispel("player")
-		 and GetTime() - ni.data.darhanger.LastDispel > 1.5
+		 and GetTime() - data.LastDispel > 1.5
 		 and ni.spell.valid("player", 4987, false, true, true) then
 			ni.spell.cast(4987, "player")
-			ni.data.darhanger.LastDispel = GetTime()
+			data.LastDispel = GetTime()
 			return true
 		end
 	end,
 -----------------------------------
 	["Cleanse (Member)"] = function()
 		local _, enabled = GetSetting("cleansmemb")
-		if enabled
-		 and ni.spell.isinstant(4987)		
+		if enabled	
 		 and ni.spell.available(4987) then
 		  for i = 1, #ni.members do
 		  if ni.unit.debufftype(ni.members[i].unit, "Magic|Disease|Poison")
 		  and ni.healing.candispel(ni.members[i].unit)
-		  and GetTime() - ni.data.darhanger.LastDispel > 1.2
+		  and GetTime() - data.LastDispel > 1.2
 		  and ni.spell.valid(ni.members[i].unit, 4987, false, true, true) then
 				ni.spell.cast(4987, ni.members[i].unit)
-				ni.data.darhanger.LastDispel = GetTime()
+				data.LastDispel = GetTime()
 				return true
 				end
 			end
 		end
+	end,
+-----------------------------------
+	["Turn Evil (Auto Use)"] = function()        
+		local _, enabled = GetSetting("turn")
+		if enabled 
+		 and ni.unit.exists("target")
+		 and ni.spell.available(10326)
+		 and UnitCanAttack("player", "target") then
+		 table.wipe(enemies);
+		  enemies = ni.unit.enemiesinrange("player", 25)
+		  local dontTurn = false
+		  for i = 1, #enemies do
+		   local tar = enemies[i].guid; 
+		   if (ni.unit.creaturetype(enemies[i].guid) == 3
+		    or ni.unit.creaturetype(enemies[i].guid) == 6
+		    or ni.unit.aura(enemies[i].guid, 49039))
+		    and ni.unit.debuff(tar, 10326, "player") then
+			dontTurn = true
+			break
+		end
+        end
+		if not dontTurn then
+		 for i = 1, #enemies do
+		 local tar = enemies[i].guid; 
+		  if (ni.unit.creaturetype(enemies[i].guid) == 3
+		   or ni.unit.creaturetype(enemies[i].guid) == 6
+		   or ni.unit.aura(enemies[i].guid, 49039))
+		   and not ni.unit.isboss(tar)
+		   and not ni.unit.debuffs(tar, "23920||35399||69056", "EXACT")
+		   and not ni.unit.debuff(tar, 10326, "player")
+		   and ni.spell.valid(enemies[i].guid, 10326, false, true, true)
+		   and GetTime() - data.paladin.LastTurn > 1.5 then
+				ni.spell.cast(10326, tar)
+				data.paladin.LastTurn = GetTime()
+                        return true
+					end
+				end
+			end
+		end
+	end,
+-----------------------------------
+	["Control (Member)"] = function()
+		local _, enabled = GetSetting("control")
+		if enabled
+		 and ni.spell.available(20066) then
+		  for i = 1, #ni.members do
+		   local ally = ni.members[i].unit
+		    if data.ControlMember(ally)
+			and not data.UnderControlMember(ally)
+			and ni.spell.valid(ally, 20066, false, true, true) then
+				ni.spell.cast(20066, ally)
+				return true
+				end
+			end
+		end
+		if not ni.spell.available(20066)
+		 and ni.spell.available(10308) then 
+		  for i = 1, #ni.members do
+		   local ally = ni.members[i].unit
+		    if data.ControlMember(ally)
+			and not data.UnderControlMember(ally)
+			and ni.spell.valid(ally, 10308, false, true, true) then
+				ni.spell.cast(10308, ally)
+				return true
+				end
+			end
+		end		
 	end,
 -----------------------------------
 	["Window"] = function()
@@ -569,4 +655,22 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Retri_DarhangeR", queue, abilities, data, { [1] = "Retribution Paladin by DarhangeR", [2] = items });
+	ni.bootstrap.profile("Retri_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Retri_DarhangeR", queue, abilities);
+end

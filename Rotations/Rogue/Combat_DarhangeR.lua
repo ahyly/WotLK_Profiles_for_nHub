@@ -1,17 +1,21 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_Combat.xml",
-	{ type = "title", text = "Combat Rogue by DarhangeR" },
+	{ type = "title", text = "Combat Rogue by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
+	{ type = "entry", text = "Auto Interrupt", tooltip = "Auto check and interrupt all interruptible spells", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },		
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "title", text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %", enabled = true, value = 30, key = "healpotionuse" },
 	{ type = "separator" },
 	{ type = "title", text = "Build Settings" },
     { type = "dropdown", menu = {
@@ -42,6 +46,12 @@ local function GetSetting(name)
         end
     end
 end;
+local function OnLoad()
+	ni.GUI.AddFrame("Combat_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Combat_DarhangeR");
+end
 
 local EviscerateBuild = {
 	"Window",
@@ -58,6 +68,7 @@ local EviscerateBuild = {
 	"Tricks of the Trade",
 	"Fan of Knives",
 	"Riposte",
+	"Garrote/Ambush",
 	"Adrenaline Rush",
 	"Blade Flurry",
 	"Killing Spree",
@@ -80,6 +91,7 @@ local RaptureBuild = {
 	"Tricks of the Trade",
 	"Fan of Knives",
 	"Riposte",
+	"Garrote/Ambush",
 	"Adrenaline Rush",
 	"Blade Flurry",
 	"Killing Spree",
@@ -91,9 +103,10 @@ local RaptureBuild = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -113,15 +126,15 @@ local abilities = {
 			applypoison = nil 
 		end
 		if not UnitAffectingCombat("player") 
-		and applypoison == nil then
+		and not applypoison then
 		applypoison = GetTime()
-		if mh == nil 
+		if not mh 
 		 and ni.player.hasitem(43231) then
 			ni.player.useitem(43231)
 			ni.player.useinventoryitem(16)
 			return true
 		end
-		if oh == nil
+		if not oh
 		 and ni.player.hasitem(43233) then
 			ni.player.useitem(43233)
 			ni.player.useinventoryitem(17)
@@ -131,8 +144,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.meleeStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.meleeStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -173,7 +186,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -184,7 +197,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -205,7 +218,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10) 
 		 and ni.player.slotcd(10) == 0
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(10)
@@ -217,14 +230,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.player.useinventoryitem(14)
 			return true
@@ -237,11 +250,10 @@ local abilities = {
 		if enabled	
 		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.available(1766)
-		 and ni.spell.isinstant(1766)
-		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
+		 and GetTime() - data.LastInterrupt > 9
 		 and ni.spell.valid("target", 1766, true, true)  then
 			ni.spell.castinterrupt("target")
-			ni.data.darhanger.LastInterrupt  = GetTime()
+			data.LastInterrupt  = GetTime()
 			return true
 		end
 	end,
@@ -260,7 +272,7 @@ local abilities = {
 		 or ni.vars.combat.cd or ni.unit.isboss("target") )
 		  and not ni.unit.exists("focus")
 		  and ni.spell.available(57934)
-		  and ni.data.darhanger.youInInstance() 
+		  and data.youInInstance() 
 		  and ni.spell.valid(tank, 57934, false, true, true) then
 			ni.spell.cast(57934, tank)
 			return true
@@ -271,7 +283,6 @@ local abilities = {
 	["Fan of Knives"] = function()
 		if ni.vars.combat.aoe
 		 and ni.spell.available(51723)
-		 and ni.spell.isinstant(51723)
 		 and ni.spell.valid("target", 48638, true, true) then
 			ni.spell.castat(51723, "target")
 			ni.player.runtext("/targetlasttarget")
@@ -282,7 +293,6 @@ local abilities = {
 	["Riposte"] = function()
 		if IsSpellKnown(14251)
 		 and IsUsableSpell(GetSpellInfo(14251)) 
-		 and ni.spell.isinstant(14251)
 		 and ni.spell.available(14251)
 		 and ni.spell.valid("target", 14251, true, true) then
 			ni.spell.castqueue(14251, "target")
@@ -290,12 +300,32 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Garrote/Ambush"] = function()
+		local OGar = data.rogue.OGar()
+		if ni.player.buff(1784)
+		 and ( ni.vars.combat.cd or ni.unit.isboss("target") ) then
+		  if not OGar
+		   and ni.player.isbehind("target")
+		   and ni.spell.available(48676)
+		   and ni.spell.valid("target", 48676, true, true) then
+			  ni.spell.cast(48676, "target")
+			  return true
+		end
+		  if OGar
+		   and ni.player.isbehind("target")
+		   and ni.spell.available(48691)
+		   and ni.spell.valid("target", 48691, true, true) then
+			  ni.spell.cast(48691, "target")
+			  return true
+			end
+		end
+	end,
+-----------------------------------
 	["Blade Flurry"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") or ni.vars.combat.aoe )
 		 and ni.spell.available(13877)
-		 and ni.spell.isinstant(13877)
 		 and not ni.spell.available(51690)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.spell.cast(13877)
 			return true
@@ -305,10 +335,9 @@ local abilities = {
 	["Adrenaline Rush"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.power() < 35
-		 and ni.spell.isinstant(13750)
 		 and ni.spell.available(13750)
 		 and not ni.spell.available(51690)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
 			ni.spell.cast(13750)
 			return true
@@ -316,9 +345,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Killing Spree"] = function()
-		local SnD = ni.data.darhanger.rogue.SnD()
+		local SnD = data.rogue.SnD()
 		if SnD
-		 and ni.spell.isinstant(51690)
 		 and ni.spell.available(51690)
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellInRange(GetSpellInfo(48638), "target") == 1 then
@@ -328,10 +356,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Slice and Dice"] = function()
-		local SnD = ni.data.darhanger.rogue.SnD()
+		local SnD = data.rogue.SnD()
 		if GetComboPoints("player") > 3
-		 and( SnD == nil or ( SnD - GetTime() <= 4 ) )
-		 and ni.spell.isinstant(6774)
+		 and ( not SnD or ( SnD <= 4 ) )
 		 and ni.spell.available(6774)
 		 and ni.spell.valid("target", 48638) then
 			ni.spell.cast(6774)
@@ -341,7 +368,6 @@ local abilities = {
 -----------------------------------
 	["Sinister Strike"] = function()
 		if GetComboPoints("player") < 5
-		 and ni.spell.isinstant(48638)
 		 and ni.spell.available(48638)
 		 and ni.spell.valid("target", 48638, true, true) then
 			ni.spell.cast(48638, "target")
@@ -350,12 +376,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Rupture"] = function()
-		local SnD = ni.data.darhanger.rogue.SnD()
-		local Rup = ni.data.darhanger.rogue.Rup()
+		local SnD = data.rogue.SnD()
+		local Rup = data.rogue.Rup()
 		if  GetComboPoints("player") == 5
-		 and ( Rup == nil or ( Rup - GetTime() <= 3 ) )
-		 and ( SnD and ( SnD - GetTime() > 5 ) )
-		 and ni.spell.isinstant(48672)
+		 and ( not Rup or ( Rup <= 3 ) )
+		 and ( SnD and ( SnD > 5 ) )
 		 and ni.spell.available(48672)
 		 and ni.spell.valid("target", 48672, true, true) then
 			ni.spell.cast(48672, "target")
@@ -364,12 +389,11 @@ local abilities = {
 	end,
 -----------------------------------
 	["Eviscerate Dump"] = function()
-		local SnD = ni.data.darhanger.rogue.SnD()
-		local Rup = ni.data.darhanger.rogue.Rup()
+		local SnD = data.rogue.SnD()
+		local Rup = data.rogue.Rup()
 		if  GetComboPoints("player") == 5
 		 and Rup
-		 and ( SnD and ( SnD - GetTime() > 5 ) )
-		 and ni.spell.isinstant(48668)
+		 and ( SnD and ( SnD > 5 ) )
 		 and ni.spell.available(48668)
 		 and ni.spell.valid("target", 48668, true, true) then
 			ni.spell.cast(48668, "target")
@@ -378,10 +402,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Eviscerate"] = function()
-		local SnD = ni.data.darhanger.rogue.SnD()
+		local SnD = data.rogue.SnD()
 		if  GetComboPoints("player") == 5
-		 and ( SnD and ( SnD - GetTime() > 5 ) )
-		 and ni.spell.isinstant(48668)
+		 and ( SnD and ( SnD > 5 ) )
 		 and ni.spell.available(48668)
 		 and ni.spell.valid("target", 48668, true, true) then
 			ni.spell.cast(48668, "target")
@@ -407,4 +430,22 @@ local function queue()
 	end
 end
 
-ni.bootstrap.rotation("Combat_DarhangeR", queue, abilities, data, { [1] = "Combat Rogue by DarhangeR", [2] = items });	
+    ni.bootstrap.profile("Combat_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Combat_DarhangeR", queue, abilities);
+end	

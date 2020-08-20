@@ -1,34 +1,39 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
 local enemies = { };
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_Arcane.xml",
-	{ type = "title", text = "Arcane Mage by DarhangeR" },
+	{ type = "title", text = "Arcane Mage by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },	
-	{ type = "entry", text = "Evocation", enabled = true, value = 20, key = "evocation" },
-	{ type = "entry", text = "Conjure Mana Gem", enabled = true, value = 35, key = "managem" },
+	{ type = "entry", text = "Auto Interrupt", tooltip = "Auto check and interrupt all interruptible spells", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Evocation", tooltip = "Use spell when player mana < %", enabled = true, value = 20, key = "evocation" },
+	{ type = "entry", text = "Conjure Mana Gem", tooltip = "Create Mana Gem and use it when player mana < %", enabled = true, value = 35, key = "managem" },	
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },	
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "page", number = 1, text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Ice Block", enabled = true, value = 23, key = "iceblock" },
-	{ type = "entry", text = "Evocation (Glyph Healing)", enabled = true, value = 30, key = "evocationglyph" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
-	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "entry", text = "Ice Block", tooltip = "Use spell when player HP < %", enabled = true, value = 23, key = "iceblock" },
+	{ type = "entry", text = "Evocation (Glyph Healing)", tooltip = "Use spell when player have glyph and HP < %", enabled = true, value = 30, key = "evocationglyph" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %",  enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", tooltip = "Use Mana Potions (if you have) when player mana < %", enabled = true, value = 25, key = "manapotionuse" },
 	{ type = "separator" },
-	{ type = "title", text = "Rotation Settings" },
+	{ type = "page", number = 2, text = "|cffEE4000Rotation Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Spellsteal", enabled = true, key = "spellsteal" },
-	{ type = "entry", text = "Auto Fire Ward", enabled = true, key = "fireward" },
-	{ type = "entry", text = "Auto Frost Ward", enabled = true, key = "frostward" },
+	{ type = "entry", text = "Spellsteal", tooltip = "Steal proper spell. You can edit table in Data file.", enabled = true, key = "spellsteal" },
+	{ type = "entry", text = "Auto Fire Ward", tooltip = "Use spell for block some fire spells. You can edit table in Data file.", enabled = true, key = "fireward" },
+	{ type = "entry", text = "Auto Frost Ward", tooltip = "Use spell for block some frost spells. You can edit table in Data file.", enabled = true, key = "frostward" },
+	{ type = "entry", text = "Auto Control (Member)", tooltip = "Auto check and control member if he mindcontrolled or etc.", enabled = true, key = "control" },	
 	{ type = "separator" },
 	{ type = "title", text = "Dispel" },
 	{ type = "separator" },
-	{ type = "entry", text = "Remove Curse", enabled = true, key = "removecurse" },
-	{ type = "entry", text = "Remove Curse (Member)", enabled = false, key = "removecursememb" },	
+	{ type = "entry", text = "Remove Curse", tooltip = "Auto dispel debuffs from player", enabled = true, key = "removecurse" },
+	{ type = "entry", text = "Remove Curse (Member)", tooltip = "Auto dispel debuffs from members", enabled = false, key = "removecursememb" },	
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -53,6 +58,12 @@ local function GetSetting(name)
         end
     end
 end;	
+local function OnLoad()
+	ni.GUI.AddFrame("Arcane_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Arcane_DarhangeR");
+end
 
 local queue = {
 	"Window",	
@@ -80,11 +91,13 @@ local queue = {
 	"Spellsteal",
 	"Presence of Mind",
 	"Mirror Image",
+	"Control (Member)",
 	"Icy Veins",
 	"Arcane Power",
 	"Flamestrike",
 	"Remove Curse (Member)",
 	"Remove Curse (Self)",
+	"Frostfire Bolt (Non Cast)",
 	"Arcane Blast",
 	"Arcane Missiles",
 	"Arcane Barrage",	
@@ -92,9 +105,10 @@ local queue = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -112,8 +126,7 @@ local abilities = {
 		 or not IsUsableSpell(GetSpellInfo(43002)) then 
 		 return false
 	end
-		if ni.spell.available(43002)
-		 and ni.spell.isinstant(43002) then
+		if ni.spell.available(43002) then
 			ni.spell.cast(43002)	
 			return true
 		end
@@ -122,14 +135,12 @@ local abilities = {
 	["Mage / Molten Armor"] = function()
 		if not ni.player.hasglyph(56382) 
 		 and not ni.player.buff(43024)
-		 and ni.spell.isinstant(43024) 
 		 and ni.spell.available(43024) then
 			ni.spell.cast(43024)
 			return true
 		else
 		if ni.player.hasglyph(56382)
 		 and not ni.player.buff(43046)
-		 and ni.spell.isinstant(43046) 
 		 and ni.spell.available(43046) then
 			ni.spell.cast(43046)
 			return true
@@ -152,7 +163,6 @@ local abilities = {
 -----------------------------------
 	["Focus Magic"] = function()
 		if IsSpellKnown(54646)
-		and ni.spell.isinstant(54646) 
 		and ni.spell.available(54646) then
 		 if ni.unit.exists("focus")
 		  and not UnitIsDeadOrGhost("focus")
@@ -178,8 +188,7 @@ local abilities = {
 	["Fire Ward"] = function()
 		local _, enabled = GetSetting("fireward")
 		if enabled
-		 and ni.data.darhanger.mage.FireWard()
-		 and ni.spell.isinstant(43010)
+		 and data.mage.FireWard()
 		 and ni.spell.available(43010) then
 		 	ni.spell.cast(43010)
 			return true
@@ -189,8 +198,7 @@ local abilities = {
 	["Frost Ward"] = function()
 		local _, enabled = GetSetting("frostward")
 		if enabled 
-		 and ni.data.darhanger.mage.FrostWard()
-		 and ni.spell.isinstant(43012)
+		 and data.mage.FrostWard()
 		 and ni.spell.available(43012) then
 		 	ni.spell.cast(43012)
 			return true
@@ -198,8 +206,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.casterStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.casterStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -265,7 +273,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -276,7 +284,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42897) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -298,7 +306,7 @@ local abilities = {
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0 
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42897) then
 			ni.player.useinventoryitem(10)
 			return true
@@ -309,14 +317,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42897) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42897) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -329,11 +337,10 @@ local abilities = {
 		if enabled
 		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.available(2139)
-		 and ni.spell.isinstant(2139) 
-		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
+		 and GetTime() - data.LastInterrupt > 9
 		 and ni.spell.valid("target", 2139, true, true)  then
 			ni.spell.castinterrupt("target")
-			ni.data.darhanger.LastInterrupt = GetTime()
+			data.LastInterrupt = GetTime()
 			return true
 		end
 	end,
@@ -342,8 +349,8 @@ local abilities = {
 		local value, enabled = GetSetting("iceblock");		
 		if enabled
 		 and ni.player.hp() < value
-		 and ni.spell.isinstant(45438)
-		 and ni.spell.available(45438) then
+		 and ni.spell.available(45438)
+		 and not ni.player.buff(45438) then
 			ni.spell.cast(45438)
 			return true
 		end
@@ -377,9 +384,10 @@ local abilities = {
 	["Spellsteal"] = function()
 		local _, enabled = GetSetting("spellsteal")
 		if enabled
-		 and ni.data.darhanger.isStealable("target")
-		 and ni.spell.isinstant(30449) 
+		 and data.mage.isStealable("target")
 		 and ni.spell.available(30449)
+		 and ( ni.player.buffstacks(67108) < 10
+		 or ni.player.buffremaining(67108) < 3 )
 		 and ni.spell.valid("target", 30449, true, true) then
 			ni.spell.cast(30449, "target")
 			return true
@@ -388,9 +396,8 @@ local abilities = {
 -----------------------------------
 	["Mirror Image"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and ni.spell.isinstant(55342) 
 		 and ni.spell.available(55342)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42833) then
 			ni.spell.cast(55342, "target")
 			ni.player.runtext("/petattack")
@@ -402,9 +409,8 @@ local abilities = {
 		if IsSpellKnown(12472)
 		 and ni.spell.cd(12043)
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and ni.spell.isinstant(12472) 
 		 and ni.spell.available(12472)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42833) then
 			ni.spell.cast(12472)
 			return true
@@ -414,9 +420,8 @@ local abilities = {
 	["Arcane Power"] = function()
 		if ( ni.player.buff(12472) or ni.spell.cd(12472) )
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
-		 and ni.spell.isinstant(12042) 
 		 and ni.spell.available(12042)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42833) then
 			ni.spell.cast(12042)
 			return true
@@ -426,10 +431,9 @@ local abilities = {
 	["Presence of Mind"] = function()
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and not ni.player.buff(44401)
-		 and ni.spell.isinstant(12043) 
 		 and ni.spell.available(12043)
 		 and ni.spell.available(42897)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 42897, true, true) then
 			ni.spell.castspells("12043|42897", "target")
 			return true
@@ -465,7 +469,6 @@ local abilities = {
 		if  count == 4
 		 and not ni.player.buff(44401) 
 		 or ni.player.ismoving()
-		 and ni.spell.isinstant(44781) 
 		 and ni.spell.available(44781)
 		 and ni.spell.valid("target", 44781, true, true) then
 			ni.spell.cast(44781, "target")
@@ -476,15 +479,14 @@ local abilities = {
 	["Remove Curse (Member)"] = function()
 		local _, enabled = GetSetting("removecursememb")
 		if enabled
-		 and ni.spell.available(475)
-		 and ni.spell.isinstant(475) then
+		 and ni.spell.available(475) then
 		  for i = 1, #ni.members do
 		  if ni.unit.debufftype(ni.members[i].unit, "Curse")
 		   and ni.healing.candispel(ni.members[i].unit)
-		   and GetTime() - ni.data.darhanger.LastDispel > 1.5
+		   and GetTime() - data.LastDispel > 1.5
 		   and ni.spell.valid(ni.members[i].unit, 475, false, true, true) then
 				ni.spell.cast(475, ni.members[i].unit)
-				ni.data.darhanger.LastDispel = GetTime()
+				data.LastDispel = GetTime()
 				return true
 				end
 			end
@@ -495,13 +497,12 @@ local abilities = {
 		local _, enabled = GetSetting("removecurse")
 		if enabled
 		  and ni.player.debufftype("Curse")
-		  and ni.spell.isinstant(475)
 		  and ni.spell.available(475)
 		  and ni.healing.candispel("player")
-		  and GetTime() - ni.data.darhanger.LastDispel > 1.5
+		  and GetTime() - data.LastDispel > 1.5
 		  and ni.spell.valid("player", 475, false, true, true) then
 			ni.spell.cast(475, "player")
-			ni.data.darhanger.LastDispel = GetTime()
+			data.LastDispel = GetTime()
 			return true
 		end
 	end,
@@ -515,6 +516,32 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Frostfire Bolt (Non Cast)"] = function()
+		if ni.player.buff(57761)
+		 and ni.spell.isinstant(47610) 
+		 and ni.spell.available(47610)
+		 and ni.spell.valid("target", 47610, true, true) then
+			ni.spell.cast(47610, "target")
+			return true
+		end
+	end,
+-----------------------------------
+	["Control (Member)"] = function()
+		local _, enabled = GetSetting("control")
+		if enabled
+		 and ni.spell.available(12826) then
+		  for i = 1, #ni.members do
+		   local ally = ni.members[i].unit
+		    if data.ControlMember(ally)
+			and not data.UnderControlMember(ally)
+			and ni.spell.valid(ally, 12826, false, true, true) then
+				ni.spell.cast(12826, ally)
+				return true
+				end
+			end
+		end
+	end,
+-----------------------------------
 	["Window"] = function()
 		if not popup_shown then
 		 ni.debug.popup("Arcane Mage by DarhangeR for 3.3.5a", 
@@ -524,4 +551,22 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Arcane_DarhangeR", queue, abilities, data, { [1] = "Arcane Mage by DarhangeR", [2] = items });
+	ni.bootstrap.profile("Arcane_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Arcane_DarhangeR", queue, abilities);
+end

@@ -1,6 +1,8 @@
-local data = {"DarhangeR.lua"}
+local data = ni.utils.require("DarhangeR");
 local popup_shown = false;
 local enemies = { };
+local build = select(4, GetBuildInfo());
+local level = UnitLevel("player");
 local function ActiveEnemies()
 	table.wipe(enemies);
 	enemies = ni.unit.enemiesinrange("target", 7);
@@ -11,31 +13,34 @@ local function ActiveEnemies()
 	end
 	return #enemies;
 end
+if build == 30300 and level == 80 and data then
 local items = {
 	settingsfile = "DarhangeR_Elemental.xml",
-	{ type = "title", text = "Elemental Shaman by DarhangeR" },
+	{ type = "title", text = "Elemental Shaman by |c0000CED1DarhangeR" },
 	{ type = "separator" },
-	{ type = "title", text = "Main Settings" },
+	{ type = "title", text = "|cffFFFF00Main Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Thunderstorm (Regen Mana)", enabled = true, value = 80, key = "thunder" },
-	{ type = "entry", text = "Auto Interrupt", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Thunderstorm (Regen Mana)", tooltip = "Use spell when player mana < % and no enemies in range", enabled = true, value = 80, key = "thunder" },
+	{ type = "entry", text = "Auto Interrupt", tooltip = "Auto check and interrupt all interruptible spells", enabled = true, key = "autointerrupt" },
+	{ type = "entry", text = "Debug Printing", tooltip = "Enable for debug if you have problems", enabled = false, key = "Debug" },		
 	{ type = "separator" },
-	{ type = "title", text = "Defensive Settings" },
+	{ type = "page", number = 1, text = "|cff00C957Defensive Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Healing Wave (Self)", enabled = false, value = 55, key = "wave" },
-	{ type = "entry", text = "Healthstone", enabled = true, value = 35, key = "healthstoneuse" },
-	{ type = "entry", text = "Heal Potion", enabled = true, value = 30, key = "healpotionuse" },
-	{ type = "entry", text = "Mana Potion", enabled = true, value = 25, key = "manapotionuse" },
+	{ type = "entry", text = "Healing Wave (Self)", tooltip = "Use spell when player HP < %", enabled = false, value = 55, key = "wave" },
+	{ type = "entry", text = "Healthstone", tooltip = "Use Warlock Healthstone (if you have) when player HP < %", enabled = true, value = 35, key = "healthstoneuse" },
+	{ type = "entry", text = "Heal Potion", tooltip = "Use Heal Potions (if you have) when player HP < %",  enabled = true, value = 30, key = "healpotionuse" },
+	{ type = "entry", text = "Mana Potion", tooltip = "Use Mana Potions (if you have) when player mana < %", enabled = true, value = 25, key = "manapotionuse" },
 	{ type = "separator" },
-	{ type = "title", text = "Rotation Settings" },
+	{ type = "page", number = 2, text = "|cffEE4000Rotation Settings" },
 	{ type = "separator" },
-	{ type = "entry", text = "Purge", enabled = true, key = "purge" },	
-	{ type = "entry", text = "Pull Totems (Auto)", enabled = true, key = "totempull" },	
+	{ type = "entry", text = "Auto Control (Member)", tooltip = "Auto check and control member if he mindcontrolled or etc.", enabled = true, key = "control" },	
+	{ type = "entry", text = "Purge", tooltip = "Purge proper spell. You can edit table in Data file.", enabled = true, key = "purge" },	
+	{ type = "entry", text = "Pull Totems (Auto)", tooltip = "Auto pull totem", enabled = true, key = "totempull" },	
 	{ type = "separator" },
 	{ type = "title", text = "Dispel" },
 	{ type = "separator" },
-	{ type = "entry", text = "Cure Toxins", enabled = true, key = "toxins" },
-	{ type = "entry", text = "Cure Toxins (Member)", enabled = false, key = "toxinsmemb" },	
+	{ type = "entry", text = "Cure Toxins", tooltip = "Auto dispel debuffs from player", enabled = true, key = "toxins" },
+	{ type = "entry", text = "Cure Toxins (Member)", tooltip = "Auto dispel debuffs from members", enabled = false, key = "toxinsmemb" },	
 };
 local function GetSetting(name)
     for k, v in ipairs(items) do
@@ -60,6 +65,12 @@ local function GetSetting(name)
         end
     end
 end;
+local function OnLoad()
+	ni.GUI.AddFrame("Elemental_DarhangeR", items);
+end
+local function OnUnLoad()  
+	ni.GUI.DestroyFrame("Elemental_DarhangeR");
+end
 
 local queue = {
 	"Window",	
@@ -79,6 +90,7 @@ local queue = {
 	"Pull Totems (Auto)",
 	"Lava Burst",
 	"Elemental Mastery",
+	"Control (Member)",
 	"Flame Shock",
 	"Earth Shock",
 	"Healing Wave (Self)",	
@@ -91,9 +103,10 @@ local queue = {
 local abilities = {
 -----------------------------------
 	["Universal pause"] = function()
-		if ni.data.darhanger.UniPause() then
+		if data.UniPause() then
 			return true
 		end
+		ni.vars.debug = select(2, GetSetting("Debug"));
 	end,
 -----------------------------------
 	["AutoTarget"] = function()
@@ -108,7 +121,7 @@ local abilities = {
 -----------------------------------
 	["Enchant Weapon"] = function()
 		local mh = GetWeaponEnchantInfo()
-		if mh == nil 
+		if not mh 
 		 and ni.spell.available(58790) then
 			ni.spell.cast(58790)
 			return true
@@ -117,7 +130,6 @@ local abilities = {
 -----------------------------------
 	["Water Shield"] = function()
 		if not ni.player.buff(57960)
-		 and ni.spell.isinstant(57960)
 		 and ni.spell.available(57960) then
 			ni.spell.cast(57960)
 			return true
@@ -132,7 +144,6 @@ local abilities = {
 		 and #enemies == 0
 		 and not UnitAffectingCombat("player")
 		 and ni.player.power() < value
-		 and ni.spell.isinstant(59159)
 		 and ni.spell.available(59159) then
 			ni.spell.cast(59159)
 			return true
@@ -140,8 +151,8 @@ local abilities = {
 	end,
 -----------------------------------
 	["Combat specific Pause"] = function()
-		if ni.data.darhanger.casterStop("target")
-		 or ni.data.darhanger.PlayerDebuffs("player")
+		if data.casterStop("target")
+		 or data.PlayerDebuffs("player")
 		 or UnitCanAttack("player","target") == nil
 		 or (UnitAffectingCombat("target") == nil 
 		 and ni.unit.isdummy("target") == nil 
@@ -196,7 +207,7 @@ local abilities = {
 		local hracial = { 33697, 20572, 33702, 26297 }
 		local alracial = { 20594, 28880 }
 		--- Undead
-		if ni.data.darhanger.forsaken("player")
+		if data.forsaken("player")
 		 and IsSpellKnown(7744)
 		 and ni.spell.available(7744) then
 				ni.spell.cast(7744)
@@ -207,7 +218,7 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and IsSpellKnown(hracial[i])
 		 and ni.spell.available(hracial[i])
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49238, true, true) then 
 					ni.spell.cast(hracial[i])
 					return true
@@ -228,7 +239,7 @@ local abilities = {
 	["Use enginer gloves"] = function()
 		if ni.player.slotcastable(10)
 		 and ni.player.slotcd(10) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.spell.valid("target", 49238) then
 			ni.player.useinventoryitem(10)
@@ -240,14 +251,14 @@ local abilities = {
 		if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(13)
 		 and ni.player.slotcd(13) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49238) then
 			ni.player.useinventoryitem(13)
 		else
 		 if ( ni.vars.combat.cd or ni.unit.isboss("target") )
 		 and ni.player.slotcastable(14)
 		 and ni.player.slotcd(14) == 0 
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49238) then
 			ni.player.useinventoryitem(14)
 			return true
@@ -260,11 +271,10 @@ local abilities = {
 		if enabled
 		 and ni.spell.shouldinterrupt("target")
 		 and ni.spell.available(57994)
-		 and ni.spell.isinstant(57994)
-		 and GetTime() - ni.data.darhanger.LastInterrupt > 9
+		 and GetTime() - data.LastInterrupt > 9
 		 and ni.spell.valid("target", 57994, true, true)  then
 			ni.spell.castinterrupt("target")
-			ni.data.darhanger.LastInterrupt = GetTime()
+			data.LastInterrupt = GetTime()
 			return true
 		end
 	end,
@@ -291,13 +301,12 @@ local abilities = {
 	end,
 -----------------------------------
 	["Elemental Mastery"] = function()
-	    local flameshock = ni.data.darhanger.shaman.flameshock()
+	    local flameshock = data.shaman.flameshock()
 	    if ( ni.vars.CD or ni.unit.isboss("target") )
 		 and flameshock
-		 and ni.spell.isinstant(16166)
 		 and not ni.spell.available(60043)
 		 and ni.spell.available(16166)
-		 and ni.data.darhanger.CDsaverTTD("target")
+		 and data.CDsaverTTD("target")
 		 and ni.spell.valid("target", 49238, true, true) then
 			ni.spell.castspells("16166|49238")
 			return true
@@ -306,7 +315,6 @@ local abilities = {
 -----------------------------------
 	["Flame Shock"] = function()
 		if ni.unit.debuffremaining("target", 49233, "player") < 2
-		 and ni.spell.isinstant(49233)
 		 and ni.spell.available(49233)
 		 and ni.spell.valid("target", 49233, true, true) then
 			ni.spell.cast(49233, "target")
@@ -315,10 +323,9 @@ local abilities = {
 	end,
 -----------------------------------
 	["Earth Shock"] = function()
-		local flameshock = ni.data.darhanger.shaman.flameshock()
+		local flameshock = data.shaman.flameshock()
 		if ni.player.ismoving()
 		 and flameshock
-		 and ni.spell.isinstant(49231)
 		 and ni.spell.available(49231)
 		 and ni.spell.valid("target", 49231, true, true) then
 			ni.spell.cast(49231, "target")
@@ -327,7 +334,7 @@ local abilities = {
 	end,
 -----------------------------------
 	["Lava Burst"] = function()
-		local flameshock = ni.data.darhanger.shaman.flameshock()
+		local flameshock = data.shaman.flameshock()
 		if flameshock
 		 and not ni.player.ismoving()
 		 and ni.spell.available(60043)
@@ -362,13 +369,12 @@ local abilities = {
 		local _, enabled = GetSetting("toxins")
 		if enabled
 		  and ni.player.debufftype("Disease|Poison")
-		  and ni.spell.isinstant(526)
 		  and ni.spell.available(526)
 		  and ni.healing.candispel("player")
-		  and GetTime() - ni.data.darhanger.LastDispel > 1.5
+		  and GetTime() - data.LastDispel > 1.5
 		  and ni.spell.valid("player", 526, false, true, true) then
 			ni.spell.cast(526, "player")
-			ni.data.darhanger.LastDispel = GetTime()
+			data.LastDispel = GetTime()
 			return true
 		end
 	end,
@@ -376,15 +382,14 @@ local abilities = {
 	["Cure Toxins (Member)"] = function()
 		local _, enabled = GetSetting("toxinsmemb")
 		if enabled
-		 and ni.spell.available(526)
-		 and ni.spell.isinstant(526) then
+		 and ni.spell.available(526) then
 		  for i = 1, #ni.members do
 		  if ni.unit.debufftype(ni.members[i].unit, "Disease|Poison")
 		   and ni.healing.candispel(ni.members[i].unit)
-		   and GetTime() - ni.data.darhanger.LastDispel > 1.5
+		   and GetTime() - data.LastDispel > 1.5
 		   and ni.spell.valid(ni.members[i].unit, 526, false, true, true) then
 				ni.spell.cast(526, ni.members[i].unit)
-				ni.data.darhanger.LastDispel = GetTime()
+				data.LastDispel = GetTime()
 				return true
 				end
 			end
@@ -394,13 +399,12 @@ local abilities = {
 	["Purge"] = function()
 		local _, enabled = GetSetting("purge")
 		if enabled
-		 and ni.data.darhanger.canPurge("target")
-		 and ni.spell.isinstant(8012)
+		 and data.shaman.canPurge("target")
 		 and ni.spell.available(8012)
 		 and ni.spell.valid("player", 8012, true, true)
-		 and GetTime() - ni.data.darhanger.shaman.LastPurge > 2.5 then
+		 and GetTime() - data.shaman.LastPurge > 2.5 then
 			ni.spell.cast(8012, "target")
-			ni.data.darhanger.shaman.LastPurge = GetTime()
+			data.shaman.LastPurge = GetTime()
 			return true
 		end
 	end,
@@ -414,6 +418,22 @@ local abilities = {
 		end
 	end,
 -----------------------------------
+	["Control (Member)"] = function()
+		local _, enabled = GetSetting("control")
+		if enabled
+		 and ni.spell.available(51514) then
+		  for i = 1, #ni.members do
+		   local ally = ni.members[i].unit
+		    if data.ControlMember(ally)
+			and not data.UnderControlMember(ally)
+			and ni.spell.valid(ally, 51514, false, true, true) then
+				ni.spell.cast(51514, ally)
+				return true
+				end
+			end
+		end
+	end,
+-----------------------------------
 	["Window"] = function()
 		if not popup_shown then
 		 ni.debug.popup("Elemental Shaman by DarhangeR for 3.3.5a", 
@@ -423,4 +443,22 @@ local abilities = {
 	end,
 }
 
-ni.bootstrap.rotation("Elemental_DarhangeR", queue, abilities, data, { [1] = "Elemental Shaman by DarhangeR", [2] = items });
+	ni.bootstrap.profile("Elemental_DarhangeR", queue, abilities, OnLoad, OnUnLoad);
+else
+    local queue = {
+        "Error",
+    }
+    local abilities = {
+        ["Error"] = function()
+            ni.vars.profiles.enabled = false;
+            if build > 30300 then
+              ni.frames.floatingtext:message("This profile is meant for WotLK 3.3.5a! Sorry!")
+            elseif level < 80 then
+              ni.frames.floatingtext:message("This profile is meant for level 80! Sorry!")
+            elseif data == nil then
+              ni.frames.floatingtext:message("Data file is missing or corrupted!");
+            end
+        end,
+    }
+    ni.bootstrap.profile("Elemental_DarhangeR", queue, abilities);
+end
