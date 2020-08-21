@@ -1,7 +1,9 @@
+-- Blacklist table for healers --
 local dontdispel = { 68786, 34917, 34919, 48159, 48160, 30404, 30405, 31117, 34438, 35183, 43522, 47841, 47843, 65812, 68154, 68155, 68156, 44461, 55359, 55360, 55361, 55362, 61429, 30108, 34914, 74562, 74792, 70867, 70338, 70405 };
 for k, v in pairs(dontdispel) do
     ni.healing.debufftoblacklist(v);
 end
+-- Shared Stuff for all --
 local cbuff = { 59301, 642, 31224, 23920, 33786, 19263, 21892, 40733, 45438, 69051, 69056, 20223 };
 local mbuff = { 59301, 45438, 33786, 21892, 40733, 69051 };
 local tbuff = { 59301, 45438, 33786, 21892, 40733, 19263, 1022, 69051 };
@@ -9,7 +11,7 @@ local forsdebuff = { 6215, 8122, 5484, 2637, 5246, 6358, 605, 22686 };
 local pbuff = { 430, 433, 25990, 58984 };
 local pdebuff = { 52509 };
 local _, class = UnitClass("player");
----Hunter Converts
+---Druid Converts
 local moonfiredebuff = GetSpellInfo(48463)
 local insectswarmdebuff = GetSpellInfo(48468)
 local mangledebuff = GetSpellInfo(48564)
@@ -51,12 +53,12 @@ end
 SLASH_DARDEBUG1 = "/dardebug";
 SlashCmdList["DARDEBUG"] = changedebug;
 
-local data = {
+local data = { };
 	LastDispel = 0, 
 	LastInterrupt = 0,
 	
 		-- Vars for Universal Pause --
-	PlayerBuffs = function()
+	data.PlayerBuffs = function()
 		for _, v in ipairs(pbuff) do
 		 if ni.unit.buff("player", v) then 
 		     return true
@@ -66,7 +68,7 @@ local data = {
 	end,
 	
 		-- Check Start Fight --
-	CDsaver = function(t)
+	data.CDsaver = function(t)
 	if ni.vars.combat.time ~= 0 
 	 and GetTime() - ni.vars.combat.time > 7
 	 and ni.unit.hp(t) >= 5 then
@@ -76,7 +78,7 @@ local data = {
 	end,
 				
 		-- Check Start Fight with TTD --
-	CDsaverTTD = function(t)
+	data.CDsaverTTD = function(t)
 	if ni.vars.combat.time ~= 0 
 	 and GetTime() - ni.vars.combat.time > 5 
 	 and ni.unit.ttd(t) > 35
@@ -87,7 +89,7 @@ local data = {
 	end,
 
 		-- Universal Pause --
-	UniPause = function()
+	data.UniPause = function()
 	if ni.spell.gcd()
 	 or IsMounted()
 	 or UnitInVehicle("player")
@@ -104,7 +106,7 @@ local data = {
 		     return false
 	end,
 	
-	PlayerDebuffs = function()
+	data.PlayerDebuffs = function()
 		for _, v in ipairs(pdebuff) do
 		 if ni.unit.debuff("player", v) then 
 		     return true
@@ -115,7 +117,7 @@ local data = {
 	
 	
     -- Vars for Combat Pause --
-	casterStop = function()
+	data.casterStop = function()
 		for _, v in ipairs(cbuff) do
 		 if ni.unit.buff("target", v) then 
 		     return true
@@ -126,7 +128,7 @@ local data = {
 	
 	
 	
-	meleeStop = function()
+	data.meleeStop = function()
 		for _, v in ipairs(mbuff) do
 		 if ni.unit.buff("target", v) then 
 		     return true
@@ -135,7 +137,7 @@ local data = {
 		     return false
 	end,
 	
-	tankStop = function()
+	data.tankStop = function()
 		for _, v in ipairs(tbuff) do
 		 if ni.unit.buff("target", v) then 
 		     return true
@@ -145,7 +147,7 @@ local data = {
 	end,
 	
 	-- Will of the Forsaken
-	forsaken = function()
+	data.forsaken = function()
 		for _, v in ipairs(forsdebuff) do
 		 if ni.player.debuff(v) then 
 		     return true
@@ -155,7 +157,7 @@ local data = {
 	end,
 	
 	-- Check Instance / Raid --
-	youInInstance = function()
+	data.youInInstance = function()
 		if IsInInstance()
 		 and select(2, GetInstanceInfo()) == "party" then
 		     return true
@@ -163,7 +165,7 @@ local data = {
 		    return false
 	end,
 
-	youInRaid = function()
+	data.youInRaid = function()
 		if IsInInstance()
 		 and select(2, GetInstanceInfo()) == "raid" then
 		     return true
@@ -172,7 +174,7 @@ local data = {
 	end,
 			
 	-- Pet Follow / Attack Function -- 
-	petFollow = function()
+	data.petFollow = function()
 		local pet = ni.objects["pet"]
 		if not pet:exists() then
 			return
@@ -186,7 +188,7 @@ local data = {
 		end
 	end,
 	
-	petAttack = function()
+	data.petAttack = function()
 		local pet = ni.objects["pet"]
 		if not pet:exists() then
 			return
@@ -201,7 +203,7 @@ local data = {
 			petDistance = nil
 		end
 	end	
-}
+
 local classlower = string.lower(class);
 if classlower == "deathknight" then
 	classlower = "dk";
